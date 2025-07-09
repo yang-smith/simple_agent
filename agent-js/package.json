@@ -1,0 +1,37 @@
+{
+  "name": "simple-agent-js",
+  "version": "1.0.0",
+  "description": "A simple AI agent with memory system",
+  "main": "dist/simple-agent.umd.js",
+  "module": "dist/simple-agent.esm.js",
+  "types": "dist/simple-agent.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "dev": "rollup -c -w",
+    "build": "rollup -c",
+    "test": "node examples/node-example.js"
+  },
+  "keywords": ["ai", "agent", "memory", "llm"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "idb": "^8.0.0",
+    "uuid": "^9.0.1",
+    "date-fns": "^3.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.9.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/simple-agent.esm.js",
+      "require": "./dist/simple-agent.umd.js"
+    }
+  }
+} 

@@ -1,0 +1,12 @@
+# Core dependencies
+openai>=1.0.0
+httpx>=0.24.0
+tiktoken>=0.5.0
+aiolimiter>=1.1.0
+python-dotenv>=1.0.0
+
+# Memory system dependencies
+scikit-learn>=1.0.0
+jieba>=0.42.1
+numpy>=1.21.0
+
