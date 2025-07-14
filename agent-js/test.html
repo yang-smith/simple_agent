@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Client Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            white-space: pre-wrap;
+            min-height: 100px;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .streaming {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LLM Client Test (Gateway)</h1>
+        
+        <div class="info">
+            <strong>Gateway URL:</strong> https://my-llm-gateway.zy892065502.workers.dev<br>
+            <strong>Auth Required:</strong> User token is required for all requests
+        </div>
+        
+        <form id="testForm">
+            <div class="form-group">
+                <label for="userToken">User Token (Required):</label>
+                <input type="password" id="userToken" placeholder="Enter your gateway user token" value="sk-gw-7f8a9b2c4d6e1f3a5b7c9d2e4f6a8b1c">
+            </div>
+            
+            <div class="form-group">
+                <label for="model">Model:</label>
+                <select id="model">
+                    <option value="openai/gpt-4o">OpenAI GPT-4o</option>
+                    <option value="openai/gpt-3.5-turbo">OpenAI GPT-3.5 Turbo</option>
+                    <option value="anthropic/claude-3-sonnet">Claude 3 Sonnet</option>
+                    <option value="google/gemini-2.5-flash" selected>Google Gemini 2.5 Flash</option>
+                    <option value="text-embedding-3-small">Text Embedding 3 Small</option>
+                    <option value="perplexity/sonar">Perplexity Sonar (Web Search)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="message">Message:</label>
+                <textarea id="message" rows="4" placeholder="Enter your message here...">Hello! How are you today?</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="temperature">Temperature:</label>
+                <input type="number" id="temperature" min="0" max="2" step="0.1" value="0.7">
+            </div>
+            
+            <div class="form-group">
+                <label for="maxTokens">Max Tokens:</label>
+                <input type="number" id="maxTokens" min="1" max="4000" value="1000">
+            </div>
+            
+            <button type="button" id="testChat">Test Chat</button>
+            <button type="button" id="testStream">Test Stream</button>
+            <button type="button" id="testTools">Test Tools</button>
+            <button type="button" id="clearResponse">Clear</button>
+        </form>
+        
+        <div id="response" class="response" style="display: none;"></div>
+    </div>
+
+    <script type="module">
+        import { LLMClient } from './src/llm/llm-client.js';
+        import { initializeTools, getFunctionsXML, parseAndExecuteFunctionCalls } from './src/tools/index.js';
+        
+        const form = document.getElementById('testForm');
+        const responseDiv = document.getElementById('response');
+        const testChatBtn = document.getElementById('testChat');
+        const testStreamBtn = document.getElementById('testStream');
+        const testToolsBtn = document.getElementById('testTools');
+        const clearBtn = document.getElementById('clearResponse');
+        
+        // 初始化工具系统
+        try {
+            console.log('Initializing tools...');
+            await initializeTools();
+            console.log('Tools initialized successfully');
+            
+            // 验证工具注册
+            const { toolRegistry } = await import('./src/tools/registry.js');
+            const toolNames = toolRegistry.getToolNames();
+            console.log('Registered tools:', toolNames);
+            
+            const functionsXML = getFunctionsXML();
+            console.log('Functions XML:', functionsXML);
+            
+            if (toolNames.length > 0) {
+                console.log('✅ Tools system ready');
+            } else {
+                console.warn('⚠️ No tools registered');
+            }
+        } catch (error) {
+            console.error('❌ Failed to initialize tools:', error);
+        }
+        
+        function showResponse(content, isError = false, isStreaming = false) {
+            responseDiv.style.display = 'block';
+            responseDiv.className = 'response';
+            if (isError) responseDiv.classList.add('error');
+            if (isStreaming) responseDiv.classList.add('streaming');
+            responseDiv.textContent = content;
+        }
+        
+        function appendResponse(content) {
+            responseDiv.textContent += content;
+        }
+        
+        function getFormData() {
+            return {
+                userToken: document.getElementById('userToken').value,
+                model: document.getElementById('model').value,
+                message: document.getElementById('message').value,
+                temperature: parseFloat(document.getElementById('temperature').value),
+                maxTokens: parseInt(document.getElementById('maxTokens').value)
+            };
+        }
+        
+        testChatBtn.addEventListener('click', async () => {
+            const data = getFormData();
+            
+            if (!data.userToken.trim()) {
+                showResponse('Please enter a user token', true);
+                return;
+            }
+            
+            if (!data.message.trim()) {
+                showResponse('Please enter a message', true);
+                return;
+            }
+            
+            testChatBtn.disabled = true;
+            testStreamBtn.disabled = true;
+            testToolsBtn.disabled = true;
+            
+            try {
+                showResponse('Sending request through gateway...');
+                
+                const client = new LLMClient({
+                    userToken: data.userToken,
+                    model: data.model
+                });
+                
+                let response;
+                
+                // 判断是否是embedding模型
+                if (data.model.includes('embedding') || data.model.includes('embed')) {
+                    response = await client.embedding({
+                        input: data.message,
+                        model: data.model
+                    });
+                    
+                    // 格式化embedding响应
+                    const formattedResponse = response.map((item, index) => 
+                        `Embedding ${index + 1}:\nDimensions: ${item.embedding.length}\nFirst 10 values: [${item.embedding.slice(0, 10).map(v => v.toFixed(6)).join(', ')}...]`
+                    ).join('\n\n');
+                    
+                    showResponse(`✅ Success via Gateway!\n\n${formattedResponse}`);
+                } else {
+                    response = await client.chat({
+                        messages: [{ role: 'user', content: data.message }],
+                        temperature: data.temperature,
+                        maxTokens: data.maxTokens
+                    });
+                    
+                    showResponse(`✅ Success via Gateway!\n\n${response}`);
+                }
+                
+            } catch (error) {
+                showResponse(`❌ Gateway Error: ${error.message}`, true);
+            } finally {
+                testChatBtn.disabled = false;
+                testStreamBtn.disabled = false;
+                testToolsBtn.disabled = false;
+            }
+        });
+        
+        testStreamBtn.addEventListener('click', async () => {
+            const data = getFormData();
+            
+            if (!data.userToken.trim()) {
+                showResponse('Please enter a user token', true);
+                return;
+            }
+            
+            if (!data.message.trim()) {
+                showResponse('Please enter a message', true);
+                return;
+            }
+            
+            testChatBtn.disabled = true;
+            testStreamBtn.disabled = true;
+            testToolsBtn.disabled = true;
+            
+            try {
+                showResponse('🌊 Streaming through gateway...\n\n', false, true);
+                
+                const client = new LLMClient({
+                    userToken: data.userToken,
+                    model: data.model
+                });
+                
+                const stream = client.chatStream({
+                    messages: [{ role: 'user', content: data.message }],
+                    temperature: data.temperature,
+                    maxTokens: data.maxTokens
+                });
+                
+                for await (const chunk of stream) {
+                    appendResponse(chunk);
+                }
+                
+            } catch (error) {
+                showResponse(`❌ Gateway Stream Error: ${error.message}`, true);
+            } finally {
+                testChatBtn.disabled = false;
+                testStreamBtn.disabled = false;
+                testToolsBtn.disabled = false;
+            }
+        });
+
+        testToolsBtn.addEventListener('click', async () => {
+            const data = getFormData();
+            
+            if (!data.userToken.trim()) {
+                showResponse('Please enter a user token', true);
+                return;
+            }
+            
+            if (!data.message.trim()) {
+                showResponse('Please enter a message', true);
+                return;
+            }
+            
+            testChatBtn.disabled = true;
+            testStreamBtn.disabled = true;
+            testToolsBtn.disabled = true;
+            
+            try {
+                showResponse('🛠️ Testing tools through gateway...\n\n');
+                
+                // 重新导入以确保最新状态
+                const { toolRegistry } = await import('./src/tools/registry.js');
+                const toolNames = toolRegistry.getToolNames();
+                appendResponse(`Registered tools: ${toolNames.join(', ')}\n\n`);
+                
+                // 获取工具定义XML
+                const functionsXML = getFunctionsXML();
+                appendResponse(`Available tools:\n${functionsXML}\n\n`);
+                
+                if (!functionsXML.trim()) {
+                    appendResponse('❌ ERROR: No tools are registered!\n\n');
+                    appendResponse('Please check the console for initialization errors.\n');
+                    return;
+                }
+                
+                // 构建包含工具定义的系统提示
+                const systemPrompt = `你是一个智能助手，可以使用以下工具来帮助用户：
+
+${functionsXML}
+
+重要说明：
+1. 当你需要搜索最新信息、实时数据或你知识库中没有的信息时，必须使用web_search工具
+2. 使用以下XML格式调用工具：
+<function_calls>
+<invoke name="web_search">
+<parameter name="search_input">具体的搜索内容</parameter>
+</invoke>
+</function_calls>
+
+3. 对于以下类型的问题，你应该使用web_search工具：
+   - 最新新闻、时事
+   - 实时数据（股价、天气等）
+   - 2024年之后的信息
+   - 具体的事实查询
+
+用户问题：${data.message}
+
+请分析这个问题是否需要搜索最新信息，如果需要，请使用web_search工具。`;
+
+                // 创建LLM客户端 - 使用网关
+                const client = new LLMClient({
+                    userToken: data.userToken,
+                    model: data.model
+                });
+                
+                // 发送请求到LLM
+                appendResponse('📤 Sending request to LLM via gateway...\n\n');
+                const llmResponse = await client.chat({
+                    messages: [{ role: 'user', content: systemPrompt }],
+                    temperature: data.temperature,
+                    maxTokens: data.maxTokens
+                });
+                
+                appendResponse(`🤖 LLM Response:\n${llmResponse}\n\n`);
+                
+                // 解析并执行工具调用
+                appendResponse('🔍 Parsing and executing function calls...\n\n');
+                const toolResults = await parseAndExecuteFunctionCalls(llmResponse);
+                
+                if (toolResults.length > 0) {
+                    appendResponse(`🛠️ Tool execution results:\n${JSON.stringify(toolResults, null, 2)}\n\n`);
+                    
+                    // 如果有工具执行结果，发送回LLM获取最终回复
+                    const finalPrompt = `基于以下工具执行结果，请给用户一个完整、准确的回复：
+
+工具执行结果：
+${JSON.stringify(toolResults, null, 2)}
+
+用户原始问题：${data.message}
+
+请基于工具返回的实际信息来回答用户问题，不要编造信息。`;
+
+                    appendResponse('✨ Getting final response from LLM via gateway...\n\n');
+                    const finalResponse = await client.chat({
+                        messages: [{ role: 'user', content: finalPrompt }],
+                        temperature: data.temperature,
+                        maxTokens: data.maxTokens
+                    });
+                    
+                    appendResponse(`📝 Final Response:\n${finalResponse}`);
+                } else {
+                    appendResponse('ℹ️ No function calls found in LLM response.\n');
+                    appendResponse('The LLM decided not to use any tools for this query.');
+                }
+                
+            } catch (error) {
+                console.error('Tools test error:', error);
+                showResponse(`❌ Gateway Tools Error: ${error.message}\n\nStack trace:\n${error.stack}`, true);
+            } finally {
+                testChatBtn.disabled = false;
+                testStreamBtn.disabled = false;
+                testToolsBtn.disabled = false;
+            }
+        });
+        
+        clearBtn.addEventListener('click', () => {
+            responseDiv.style.display = 'none';
+            responseDiv.textContent = '';
+        });
+    </script>
+</body>
+</html> 

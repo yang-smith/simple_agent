@@ -1,27 +1,20 @@
 export class LLMClient {
-  constructor({ apiKey, model = 'google/gemini-2.5-flash', baseURL }) {
-    this.apiKey = apiKey;
+  constructor({ model = 'google/gemini-2.5-flash', baseURL, userToken }) {
     this.model = model;
-    this.baseURL = baseURL || this._getDefaultBaseURL(model);
+    // 统一使用网关地址
+    this.baseURL = baseURL || 'https://my-llm-gateway.zy892065502.workers.dev';
+    // 用户认证token - 在浏览器环境中不使用 process.env
+    this.userToken = (typeof process !== 'undefined' ? process.env.GATEWAY_USER_TOKEN : null) || 'sk-gw-7f8a9b2c4d6e1f3a5b7c9d2e4f6a8b1c';
     
-    if (!this.apiKey) {
-      throw new Error('API key is required for LLM client');
+    if (!this.userToken) {
+      throw new Error('User token is required for gateway access');
     }
   }
 
-  _getDefaultBaseURL(model) {
-    if (model.startsWith('google/')) {
-      return 'https://generativelanguage.googleapis.com/v1beta';
-    }
-    // 可以扩展支持其他LLM提供商
-    return 'https://api.openai.com/v1';
-  }
-
-  async chat({ messages, tools, temperature = 0.7, maxTokens = 1000, ...options }) {
+  async chat({ messages, temperature = 0.7, maxTokens = 1000, ...options }) {
     try {
       const requestBody = this._buildChatRequest({
         messages,
-        tools,
         temperature,
         maxTokens,
         ...options
@@ -36,11 +29,10 @@ export class LLMClient {
     }
   }
 
-  async *chatStream({ messages, tools, temperature = 0.7, maxTokens = 1000, ...options }) {
+  async *chatStream({ messages, temperature = 0.7, maxTokens = 1000, ...options }) {
     try {
       const requestBody = this._buildChatRequest({
         messages,
-        tools,
         temperature,
         maxTokens,
         stream: true,
@@ -61,7 +53,24 @@ export class LLMClient {
     }
   }
 
-  _buildChatRequest({ messages, tools, temperature, maxTokens, stream = false, ...options }) {
+  async embedding({ input, model, ...options }) {
+    try {
+      const requestBody = {
+        model: model || this.model,
+        input: Array.isArray(input) ? input : [input],
+        ...options
+      };
+
+      const response = await this._makeRequest('/embeddings', requestBody);
+      return this._extractEmbeddingResponse(response);
+      
+    } catch (error) {
+      console.error('LLM embedding error:', error);
+      throw new Error(`LLM embedding failed: ${error.message}`);
+    }
+  }
+
+  _buildChatRequest({ messages, temperature, maxTokens, stream = false, ...options }) {
     const request = {
       model: this.model,
       messages: this._formatMessages(messages),
@@ -70,10 +79,6 @@ export class LLMClient {
       stream,
       ...options
     };
-
-    if (tools && tools.length > 0) {
-      request.tools = this._formatTools(tools);
-    }
 
     return request;
   }
@@ -89,30 +94,13 @@ export class LLMClient {
     }));
   }
 
-  _formatTools(tools) {
-    return tools.map(tool => ({
-      type: 'function',
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters || {}
-      }
-    }));
-  }
-
   async _makeRequest(endpoint, body) {
     const url = `${this.baseURL}${endpoint}`;
     
     const headers = {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${this.userToken}`
     };
-
-    // 根据不同的模型提供商设置认证头
-    if (this.model.startsWith('google/')) {
-      headers['Authorization'] = `Bearer ${this.apiKey}`;
-    } else {
-      headers['Authorization'] = `Bearer ${this.apiKey}`;
-    }
 
     const response = await fetch(url, {
       method: 'POST',
@@ -132,14 +120,9 @@ export class LLMClient {
     const url = `${this.baseURL}${endpoint}`;
     
     const headers = {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${this.userToken}`
     };
-
-    if (this.model.startsWith('google/')) {
-      headers['Authorization'] = `Bearer ${this.apiKey}`;
-    } else {
-      headers['Authorization'] = `Bearer ${this.apiKey}`;
-    }
 
     const response = await fetch(url, {
       method: 'POST',
@@ -156,54 +139,54 @@ export class LLMClient {
   }
 
   async *_parseStreamResponse(response) {
-    const reader = response.body.getReader();
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('Response body is not readable');
+    }
+
     const decoder = new TextDecoder();
+    let buffer = '';
     
     try {
       while (true) {
         const { done, value } = await reader.read();
-        
         if (done) break;
-        
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n').filter(line => line.trim());
-        
-        for (const line of lines) {
+
+        // Append new chunk to buffer
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete lines from buffer
+        while (true) {
+          const lineEnd = buffer.indexOf('\n');
+          if (lineEnd === -1) break;
+
+          const line = buffer.slice(0, lineEnd).trim();
+          buffer = buffer.slice(lineEnd + 1);
+
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
-            
-            if (data === '[DONE]') {
-              return;
-            }
-            
+            if (data === '[DONE]') return;
+
             try {
               const parsed = JSON.parse(data);
-              const content = this._extractStreamChunk(parsed);
+              const content = parsed.choices[0]?.delta?.content;
               if (content) {
                 yield content;
               }
             } catch (e) {
-              // 忽略解析错误的行
+              // Ignore invalid JSON
             }
           }
         }
       }
     } finally {
-      reader.releaseLock();
+      reader.cancel();
     }
   }
 
   _extractResponse(response) {
     if (response.choices && response.choices[0]) {
       const choice = response.choices[0];
-      
-      // 处理工具调用
-      if (choice.message && choice.message.tool_calls) {
-        return {
-          content: choice.message.content,
-          tool_calls: choice.message.tool_calls
-        };
-      }
       
       return choice.message?.content || choice.text || '';
     }
@@ -217,5 +200,16 @@ export class LLMClient {
       return delta?.content || '';
     }
     return '';
+  }
+
+  _extractEmbeddingResponse(response) {
+    if (response.data && response.data.length > 0) {
+      return response.data.map(item => ({
+        embedding: item.embedding,
+        index: item.index
+      }));
+    }
+    
+    return response;
   }
 } 

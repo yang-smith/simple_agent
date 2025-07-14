@@ -12,7 +12,7 @@
   "scripts": {
     "dev": "rollup -c -w",
     "build": "rollup -c",
-    "test": "node examples/node-example.js"
+    "test": "node test-server.js"
   },
   "keywords": ["ai", "agent", "memory", "llm"],
   "author": "",
@@ -26,7 +26,7 @@
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",
-    "rollup": "^4.9.0"
+    "rollup": "^3.0.0"
   },
   "exports": {
     ".": {
