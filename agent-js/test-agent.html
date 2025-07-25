@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .chat-history {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            margin-bottom: 15px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 6px;
+        }
+        .user-message {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+        .agent-message {
+            background-color: #f1f8e9;
+            border-left: 4px solid #4caf50;
+        }
+        .tool-result {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .error {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+            color: #c62828;
+        }
+        .system-info {
+            background-color: #e8f5e8;
+            border: 1px solid #4caf50;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .warning {
+            background-color: #fff8e1;
+            border: 1px solid #ffc107;
+            color: #f57c00;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        .stat-title {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        .stat-value {
+            font-size: 1.2em;
+            color: #007bff;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .input-area textarea {
+            flex: 1;
+            resize: vertical;
+            min-height: 60px;
+        }
+        .send-button {
+            height: 60px;
+            padding: 0 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Agent System Test</h1>
+        
+        <div id="systemStatus" class="system-info" style="display: none;">
+            ✅ Agent系统已初始化完成
+        </div>
+        
+        <div id="initError" class="warning" style="display: none;">
+            ⚠️ 系统初始化中遇到问题，请查看控制台
+        </div>
+        
+        <div class="form-group">
+            <label for="userToken">User Token (Required):</label>
+            <input type="password" id="userToken" placeholder="Enter your gateway user token" value="sk-gw-7f8a9b2c4d6e1f3a5b7c9d2e4f6a8b1c">
+        </div>
+        
+        <div class="form-group">
+            <label for="model">Model:</label>
+            <select id="model">
+                <option value="anthropic/claude-4-sonnet-20250522">anthropic/claude-4-sonnet-20250522</option>
+                <option value="google/gemini-2.5-pro" selected>google/gemini-2.5-pro</option>
+                <option value="google/gemini-2.5-flash" selected>Google Gemini 2.5 Flash</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="maxIterations">Max Iterations:</label>
+            <input type="number" id="maxIterations" min="1" max="10" value="3">
+        </div>
+
+        <div class="form-group">
+            <label for="maxContextLength">Max Context Length:</label>
+            <input type="number" id="maxContextLength" min="1000" max="16000" value="8000">
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>💬 Chat Interface</h2>
+        
+        <div id="chatHistory" class="chat-history">
+            <div class="message agent-message">
+                <strong>Agent:</strong> 你好！我是你的AI助手。我可以帮你搜索信息、查询记忆，以及处理各种任务。有什么我可以帮助你的吗？
+            </div>
+        </div>
+        
+        <div id="agentStatus" class="system-info" style="display: none;">
+            <div id="statusText">🤖 就绪</div>
+        </div>
+        
+        <div class="input-area">
+            <textarea id="userInput" placeholder="输入你的消息..." rows="3"></textarea>
+            <button id="sendMessage" class="send-button">发送</button>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <button id="clearChat">清空对话</button>
+            <button id="showStats">显示统计</button>
+            <button id="testScenario1">测试场景1: 网络搜索</button>
+            <button id="testScenario2">测试场景2: 记忆系统</button>
+            <button id="testScenario3">测试场景3: 多工具调用</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Agent Statistics</h2>
+        <div id="statsContainer" class="stats">
+            <!-- 统计信息将在这里动态显示 -->
+        </div>
+    </div>
+
+    <script type="module">
+        import { createAgent } from './src/core/agent.js';
+        import { LLMClient } from './src/llm/llm-client.js';
+        import { initializeTools } from './src/tools/index.js';
+        
+        let agent = null;
+        let llmClient = null;
+        
+        // DOM 元素
+        const chatHistory = document.getElementById('chatHistory');
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendMessage');
+        const clearButton = document.getElementById('clearChat');
+        const showStatsButton = document.getElementById('showStats');
+        const systemStatus = document.getElementById('systemStatus');
+        const agentStatus = document.getElementById('agentStatus');
+        const statusText = document.getElementById('statusText');
+        const initError = document.getElementById('initError');
+        const statsContainer = document.getElementById('statsContainer');
+        
+        // 状态图标映射
+        const statusIcons = {
+            'idle': '🤖',
+            'processing': '⚡',
+            'thinking': '🤔',
+            'tool_calling': '🔧',
+            'error': '❌'
+        };
+        
+        // 监听状态变化
+        window.addEventListener('agentStatusChange', (event) => {
+            const { status, details } = event.detail;
+            const icon = statusIcons[status] || '🤖';
+            statusText.textContent = `${icon} ${details || status}`;
+            agentStatus.style.display = 'block';
+            
+            // 如果是错误状态，改变样式
+            if (status === 'error') {
+                agentStatus.className = 'warning';
+            } else {
+                agentStatus.className = 'system-info';
+            }
+        });
+        
+        // 初始化系统
+        async function initializeSystem() {
+            try {
+                console.log('🚀 Initializing Agent System...');
+                
+                // 初始化工具系统
+                await initializeTools();
+                console.log('✅ Tools initialized');
+                
+                // 创建Agent实例
+                const options = {
+                    maxIterations: parseInt(document.getElementById('maxIterations').value),
+                    maxContextLength: parseInt(document.getElementById('maxContextLength').value)
+                };
+                agent = createAgent(options);
+                console.log('✅ Agent created');
+                
+                // 创建LLM客户端
+                createLLMClient();
+                console.log('✅ LLM client ready');
+                
+                // 设置初始状态
+                if (agent) {
+                    agent.setGlobalStatus('idle', '就绪');
+                }
+                
+                systemStatus.style.display = 'block';
+                console.log('🎉 Agent System fully initialized!');
+                
+            } catch (error) {
+                console.error('❌ System initialization failed:', error);
+                initError.style.display = 'block';
+                initError.innerHTML = `⚠️ 系统初始化失败: ${error.message}`;
+            }
+        }
+        
+        // 创建LLM客户端
+        function createLLMClient() {
+            const userToken = document.getElementById('userToken').value;
+            const model = document.getElementById('model').value;
+            
+            if (!userToken.trim()) {
+                throw new Error('User token is required');
+            }
+            
+            llmClient = new LLMClient({
+                userToken: userToken,
+                model: model
+            });
+        }
+        
+        // LLM调用函数
+        async function llmCall(context) {
+            if (!llmClient) {
+                createLLMClient();
+            }
+            
+            try {
+                console.log('🔍 Sending messages to LLM:', context);
+                const response = await llmClient.chat({
+                    messages: context,
+                    temperature: 0.7,
+                    maxTokens: 2000
+                });
+                console.log('🤖 LLM Response:', response);
+                return response;
+            } catch (error) {
+                throw new Error(`LLM调用失败: ${error.message}`);
+            }
+        }
+        
+        // 添加消息到聊天历史
+        function addMessageToHistory(content, type = 'user', isError = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            if (isError) messageDiv.classList.add('error');
+            
+            const typeLabel = {
+                'user': '用户',
+                'agent': 'Agent',
+                'tool': '工具执行',
+                'system': '系统'
+            }[type] || type;
+            
+            if (type === 'tool') {
+                messageDiv.innerHTML = `<strong>${typeLabel}:</strong><br><pre>${content}</pre>`;
+            } else {
+                messageDiv.innerHTML = `<strong>${typeLabel}:</strong> ${content}`;
+            }
+            
+            chatHistory.appendChild(messageDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+        
+        // 发送消息
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+            
+            if (!agent) {
+                addMessageToHistory('系统尚未初始化完成，请等待...', 'system', true);
+                return;
+            }
+            
+            // 显示用户消息
+            addMessageToHistory(message, 'user');
+            userInput.value = '';
+            sendButton.disabled = true;
+            
+            try {
+                // 使用Agent处理消息
+                const response = await agent.processSingleMessage(message, llmCall);
+                
+                // 显示Agent回复
+                addMessageToHistory(response, 'agent');
+                
+                // 更新统计信息
+                updateStats();
+                
+            } catch (error) {
+                console.error('Message processing error:', error);
+                addMessageToHistory(`处理消息时出错: ${error.message}`, 'system', true);
+            } finally {
+                sendButton.disabled = false;
+            }
+        }
+        
+        // 更新统计信息
+        function updateStats() {
+            if (!agent) return;
+            
+            const stats = agent.getStats();
+            const state = agent.getCurrentState();
+            
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-title">总事件数</div>
+                    <div class="stat-value">${stats.totalEvents}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">用户消息</div>
+                    <div class="stat-value">${stats.eventTypes.user_message || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Agent回复</div>
+                    <div class="stat-value">${stats.eventTypes.agent_message || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">工具调用</div>
+                    <div class="stat-value">${stats.eventTypes.tool_result || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">首次事件</div>
+                    <div class="stat-value">${stats.firstEvent ? new Date(stats.firstEvent).toLocaleTimeString() : 'N/A'}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">最新事件</div>
+                    <div class="stat-value">${stats.lastEvent ? new Date(stats.lastEvent).toLocaleTimeString() : 'N/A'}</div>
+                </div>
+            `;
+        }
+        
+        // 清空对话
+        function clearChat() {
+            if (agent) {
+                agent.clearState();
+            }
+            chatHistory.innerHTML = `
+                <div class="message agent-message">
+                    <strong>Agent:</strong> 对话已清空。我们可以重新开始！
+                </div>
+            `;
+            updateStats();
+        }
+        
+        // 测试场景
+        const testScenarios = {
+            scenario1: "请帮我搜索一下今天的天气情况",
+            scenario2: "请记住我的名字是张三，我喜欢编程和阅读",
+            scenario3: "请搜索最新的AI技术发展，并把重要信息保存到记忆中"
+        };
+        
+        async function runTestScenario(scenarioKey) {
+            const message = testScenarios[scenarioKey];
+            if (!message) return;
+            
+            userInput.value = message;
+            await sendMessage();
+        }
+        
+        // 事件监听器
+        sendButton.addEventListener('click', sendMessage);
+        clearButton.addEventListener('click', clearChat);
+        showStatsButton.addEventListener('click', updateStats);
+        
+        document.getElementById('testScenario1').addEventListener('click', () => runTestScenario('scenario1'));
+        document.getElementById('testScenario2').addEventListener('click', () => runTestScenario('scenario2'));
+        document.getElementById('testScenario3').addEventListener('click', () => runTestScenario('scenario3'));
+        
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // 模型或配置改变时重新创建LLM客户端
+        document.getElementById('model').addEventListener('change', () => {
+            if (llmClient) {
+                createLLMClient();
+                console.log('🔄 LLM client updated');
+            }
+        });
+        
+        document.getElementById('userToken').addEventListener('change', () => {
+            if (llmClient) {
+                createLLMClient();
+                console.log('🔄 LLM client updated');
+            }
+        });
+
+        // 初始化时显示状态
+        function showInitialStatus() {
+            const savedStatus = localStorage.getItem('agent_status');
+            if (savedStatus) {
+                try {
+                    const statusData = JSON.parse(savedStatus);
+                    window.dispatchEvent(new CustomEvent('agentStatusChange', { detail: statusData }));
+                } catch (e) {
+                    // 忽略解析错误
+                }
+            }
+        }
+        
+        // 页面加载完成后初始化系统
+        document.addEventListener('DOMContentLoaded', () => {
+            showInitialStatus();
+            initializeSystem();
+        });
+        
+        // 初始化统计显示
+        updateStats();
+    </script>
+</body>
+</html> 

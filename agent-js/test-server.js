@@ -19,7 +19,17 @@ const server = createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  let filePath = req.url === '/' ? '/test.html' : req.url;
+  let filePath = req.url;
+  
+  // 路由处理
+  if (req.url === '/') {
+    filePath = '/test.html';
+  } else if (req.url === '/memory') {
+    filePath = '/test-memory.html';
+  } else if (req.url === '/agent') {
+    filePath = '/test-agent.html';
+  }
+  
   filePath = join(__dirname, filePath);
 
   try {
@@ -36,6 +46,12 @@ const server = createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Test server running at http://localhost:${PORT}`);
-  console.log('Open your browser and navigate to the URL above to test the LLM client');
-}); 
+  console.log(`🚀 Test server running at http://localhost:${PORT}`);
+  console.log('');
+  console.log('📄 Available Routes:');
+  console.log(`  🔗 LLM Client Test:    http://localhost:${PORT}/`);
+  console.log(`  🧠 Memory System Test: http://localhost:${PORT}/memory`);
+  console.log(`  🤖 Agent System Test:  http://localhost:${PORT}/agent`);
+  console.log('');
+  console.log('💡 Open your browser and navigate to the URLs above');
+});

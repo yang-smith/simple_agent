@@ -2,6 +2,7 @@ import { Agent } from './core/agent.js';
 import { MemorySystem } from './memory-system/index.js';
 import { LLMClient } from './llm/llm-client.js';
 import { ToolRegistry } from './tools/registry.js';
+import { updateMemory, getRelevantMemories, getBaseMemory } from './memory-system/index.js';
 
 export class SimpleAgent {
   constructor(config = {}) {
@@ -85,6 +86,18 @@ export class SimpleAgent {
     }
   }
 
+  async updateMemory(states, forceProcess = false) {
+    return await updateMemory(states, this.userId, this.config.memory, forceProcess);
+  }
+
+  async getRelevantMemories(userInput) {
+    return await getRelevantMemories(userInput, this.userId, this.config.memory);
+  }
+
+  async getBaseMemory() {
+    return await getBaseMemory(this.userId);
+  }
+
   async getMemoryStats() {
     if (!this.memorySystem) return null;
     return await this.memorySystem.getStats();
@@ -112,5 +125,6 @@ export async function createAgent(config = {}) {
 
 // 导出主要类供高级用户使用
 export { Agent } from './core/agent.js';
-export { MemorySystem } from './memory-system/index.js';
+export * from './memory-system/index.js';
 export { LLMClient } from './llm/llm-client.js'; 
+export { ToolRegistry } from './tools/registry.js';

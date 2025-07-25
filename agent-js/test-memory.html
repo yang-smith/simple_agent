@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory System Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+            line-height: 1.6;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        button {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+        }
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+            color: #212529;
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        .response {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+            white-space: pre-wrap;
+            min-height: 100px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .warning {
+            border-left-color: #ffc107;
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 2px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .status-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .status-item h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        .status-item p {
+            margin: 0;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 Memory System Test</h1>
+            <p>Test the refactored memory system with modular architecture</p>
+        </div>
+        
+        <div class="info">
+            <strong>🔧 System Architecture:</strong><br>
+            • <code>llm-operations.js</code> - LLM interactions<br>
+            • <code>utils.js</code> - Pure utility functions<br>
+            • <code>memory-processor.js</code> - Core processing logic<br>
+            • <code>memory-manager.js</code> - Memory coordination<br>
+            • <code>storage.js</code> - Persistence layer<br>
+            • <code>index.js</code> - Main interface
+        </div>
+
+        <!-- System Status -->
+        <div class="status-grid" id="statusGrid">
+            <div class="status-item">
+                <h4>📊 Short-term Memory</h4>
+                <p id="shortTermCount">Count: Loading...</p>
+            </div>
+            <div class="status-item">
+                <h4>🏗️ Long-term Memory</h4>
+                <p id="longTermStatus">Status: Loading...</p>
+            </div>
+            <div class="status-item">
+                <h4>👤 Current User</h4>
+                <p id="currentUser">test_user</p>
+            </div>
+            <div class="status-item">
+                <h4>⚙️ Configuration</h4>
+                <p id="configStatus">Loaded: ✅</p>
+            </div>
+        </div>
+
+        <div class="two-column">
+            <!-- Left Column: Controls -->
+            <div>
+                <div class="form-group">
+                    <label for="userToken">🔑 User Token:</label>
+                    <input type="password" id="userToken" 
+                           placeholder="Enter your gateway user token" 
+                           value="sk-gw-7f8a9b2c4d6e1f3a5b7c9d2e4f6a8b1c">
+                </div>
+                
+                <div class="form-group">
+                    <label for="userId">👤 User ID:</label>
+                    <input type="text" id="userId" value="test_user" placeholder="Enter user ID">
+                </div>
+                
+                <div class="form-group">
+                    <label for="testStates">💭 Test States (JSON Array):</label>
+                    <textarea id="testStates" rows="8" placeholder="Enter states to process...">
+[
+  {"role": "user", "content": "Hello, I'm working on a new AI project", "timestamp": "2024-01-15T10:00:00Z"},
+  {"role": "assistant", "content": "That sounds exciting! What kind of AI project are you building?", "timestamp": "2024-01-15T10:00:30Z"},
+  {"role": "user", "content": "It's a memory system for LLM agents. I want them to remember long conversations.", "timestamp": "2024-01-15T10:01:00Z"},
+  {"role": "assistant", "content": "Memory systems are crucial for AI agents. Are you implementing hierarchical memory with short-term and long-term components?", "timestamp": "2024-01-15T10:01:30Z"},
+  {"role": "user", "content": "Yes, exactly! I'm using a three-layer approach: Bedrock, Evolutionary, and Dynamic memories.", "timestamp": "2024-01-15T10:02:00Z"}
+]</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="queryInput">🔍 Memory Query:</label>
+                    <input type="text" id="queryInput" 
+                           placeholder="Enter query to search memories..." 
+                           value="AI project memory system">
+                </div>
+
+                <!-- Memory Operations -->
+                <div class="button-group">
+                    <button id="processStatesBtn" class="btn-success">📝 Process States</button>
+                    <button id="forceProcessBtn" class="btn-warning">⚡ Force Process</button>
+                    <button id="queryMemoryBtn" class="btn-secondary">🔍 Query Memory</button>
+                    <button id="getBaseMemoryBtn" class="btn-secondary">🏗️ Get Base Memory</button>
+                </div>
+
+                <!-- System Operations -->
+                <div class="button-group">
+                    <button id="refreshStatusBtn" class="btn-secondary">🔄 Refresh Status</button>
+                    <button id="clearMemoryBtn" class="btn-danger">🗑️ Clear Memory</button>
+                    <button id="exportMemoryBtn" class="btn-secondary">📤 Export Memory</button>
+                    <button id="runBenchmarkBtn" class="btn-success">⚡ Run Benchmark</button>
+                </div>
+            </div>
+
+            <!-- Right Column: Results -->
+            <div>
+                <div id="response" class="response" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { 
+            updateMemory, 
+            getRelevantMemories, 
+            getBaseMemory,
+            createConfig,
+            storage
+        } from './src/memory-system/index.js';
+
+        const elements = {
+            userToken: document.getElementById('userToken'),
+            userId: document.getElementById('userId'),
+            testStates: document.getElementById('testStates'),
+            queryInput: document.getElementById('queryInput'),
+            response: document.getElementById('response'),
+            
+            // Status elements
+            shortTermCount: document.getElementById('shortTermCount'),
+            longTermStatus: document.getElementById('longTermStatus'),
+            currentUser: document.getElementById('currentUser'),
+            configStatus: document.getElementById('configStatus'),
+            
+            // Buttons
+            processStatesBtn: document.getElementById('processStatesBtn'),
+            forceProcessBtn: document.getElementById('forceProcessBtn'),
+            queryMemoryBtn: document.getElementById('queryMemoryBtn'),
+            getBaseMemoryBtn: document.getElementById('getBaseMemoryBtn'),
+            refreshStatusBtn: document.getElementById('refreshStatusBtn'),
+            clearMemoryBtn: document.getElementById('clearMemoryBtn'),
+            exportMemoryBtn: document.getElementById('exportMemoryBtn'),
+            runBenchmarkBtn: document.getElementById('runBenchmarkBtn')
+        };
+
+        // Configuration
+        const config = createConfig({
+            STATES_TOKEN_THRESHOLD: 100, // Lower threshold for testing
+            SHORT_TERM_MAX_COUNT: 5,     // Lower count for testing
+            PROMOTION_BATCH_SIZE: 2
+        });
+
+        // Utility functions
+        function showResponse(content, type = 'info') {
+            elements.response.style.display = 'block';
+            elements.response.className = `response ${type}`;
+            elements.response.textContent = content;
+        }
+
+        function appendResponse(content) {
+            elements.response.textContent += content;
+        }
+
+        function setButtonsDisabled(disabled) {
+            Object.values(elements).forEach(el => {
+                if (el && el.tagName === 'BUTTON') {
+                    el.disabled = disabled;
+                }
+            });
+        }
+
+        async function updateStatus() {
+            try {
+                const userId = elements.userId.value;
+                const shortTermCount = await storage.countShortTermMemories(userId);
+                const longTermMemory = await storage.getLongTermMemory(userId);
+                
+                elements.shortTermCount.textContent = `Count: ${shortTermCount}`;
+                elements.longTermStatus.textContent = longTermMemory.trim() ? 'Has data ✅' : 'Empty ⭕';
+                elements.currentUser.textContent = userId;
+                
+                console.log('Status updated:', { shortTermCount, hasLongTerm: !!longTermMemory.trim() });
+            } catch (error) {
+                console.error('Failed to update status:', error);
+                elements.shortTermCount.textContent = 'Error ❌';
+                elements.longTermStatus.textContent = 'Error ❌';
+            }
+        }
+
+        async function processStates(forceProcess = false) {
+            const userId = elements.userId.value;
+            const statesText = elements.testStates.value.trim();
+            
+            if (!statesText) {
+                showResponse('Please enter test states', 'error');
+                return;
+            }
+
+            try {
+                const states = JSON.parse(statesText);
+                if (!Array.isArray(states)) {
+                    throw new Error('States must be an array');
+                }
+
+                setButtonsDisabled(true);
+                showResponse(`🔄 Processing ${states.length} states${forceProcess ? ' (forced)' : ''}...`);
+
+                await updateMemory(states, userId, config, forceProcess);
+                
+                appendResponse('\n✅ Memory update completed!');
+                await updateStatus();
+                
+            } catch (error) {
+                showResponse(`❌ Error processing states: ${error.message}`, 'error');
+            } finally {
+                setButtonsDisabled(false);
+            }
+        }
+
+        async function queryMemory() {
+            const userId = elements.userId.value;
+            const query = elements.queryInput.value.trim();
+            
+            if (!query) {
+                showResponse('Please enter a query', 'error');
+                return;
+            }
+
+            try {
+                setButtonsDisabled(true);
+                showResponse(`🔍 Searching memories for: "${query}"`);
+
+                const result = await getRelevantMemories(query, userId, config);
+                
+                if (result) {
+                    const memories = JSON.parse(result);
+                    appendResponse(`\n\n📋 Found ${memories.length} relevant memories:\n\n`);
+                    memories.forEach((memory, index) => {
+                        appendResponse(`${index + 1}. ${memory}\n\n`);
+                    });
+                } else {
+                    appendResponse('\n\n🔍 No relevant memories found.');
+                }
+                
+            } catch (error) {
+                showResponse(`❌ Error querying memory: ${error.message}`, 'error');
+            } finally {
+                setButtonsDisabled(false);
+            }
+        }
+
+        async function getBaseMemoryData() {
+            const userId = elements.userId.value;
+            
+            try {
+                setButtonsDisabled(true);
+                showResponse('🏗️ Retrieving base memory...');
+
+                const baseMemory = await getBaseMemory(userId);
+                
+                if (baseMemory.trim()) {
+                    appendResponse('\n\n📋 Base Memory (Bedrock + Evolutionary):\n\n');
+                    appendResponse(baseMemory);
+                } else {
+                    appendResponse('\n\n🔍 No base memory found.');
+                }
+                
+            } catch (error) {
+                showResponse(`❌ Error retrieving base memory: ${error.message}`, 'error');
+            } finally {
+                setButtonsDisabled(false);
+            }
+        }
+
+        async function clearMemory() {
+            const userId = elements.userId.value;
+            
+            if (!confirm(`Are you sure you want to clear all memories for user "${userId}"?`)) {
+                return;
+            }
+
+            try {
+                setButtonsDisabled(true);
+                showResponse('🗑️ Clearing all memories...');
+
+                await storage.clearUserMemories(userId);
+                
+                appendResponse('\n✅ All memories cleared!');
+                await updateStatus();
+                
+            } catch (error) {
+                showResponse(`❌ Error clearing memory: ${error.message}`, 'error');
+            } finally {
+                setButtonsDisabled(false);
+            }
+        }
+
+        async function exportMemory() {
+            const userId = elements.userId.value;
+            
+            try {
+                setButtonsDisabled(true);
+                showResponse('📤 Exporting memory data...');
+
+                const shortTermMemories = await storage.getShortTermMemories(userId);
+                const longTermMemory = await storage.getLongTermMemory(userId);
+                
+                const exportData = {
+                    userId,
+                    timestamp: new Date().toISOString(),
+                    shortTermMemories: shortTermMemories.map(m => m.toJSON()),
+                    longTermMemory,
+                    config
+                };
+                
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `memory-export-${userId}-${Date.now()}.json`;
+                link.click();
+                
+                appendResponse('\n✅ Memory exported successfully!');
+                
+            } catch (error) {
+                showResponse(`❌ Error exporting memory: ${error.message}`, 'error');
+            } finally {
+                setButtonsDisabled(false);
+            }
+        }
+
+        async function runBenchmark() {
+            const userId = elements.userId.value + '_benchmark';
+            const iterations = 5;
+            
+            try {
+                setButtonsDisabled(true);
+                showResponse('⚡ Running memory system benchmark...\n\n');
+
+                const startTime = performance.now();
+                
+                for (let i = 0; i < iterations; i++) {
+                    const testStates = [
+                        { role: 'user', content: `Benchmark message ${i + 1}: This is a test message for performance evaluation.` },
+                        { role: 'assistant', content: `Response ${i + 1}: Processing your benchmark request.` }
+                    ];
+                    
+                    appendResponse(`Iteration ${i + 1}/${iterations}... `);
+                    
+                    const iterStart = performance.now();
+                    await updateMemory(testStates, userId, config, true);
+                    const iterEnd = performance.now();
+                    
+                    appendResponse(`${(iterEnd - iterStart).toFixed(2)}ms\n`);
+                }
+                
+                const endTime = performance.now();
+                const totalTime = endTime - startTime;
+                
+                appendResponse(`\n📊 Benchmark Results:\n`);
+                appendResponse(`Total time: ${totalTime.toFixed(2)}ms\n`);
+                appendResponse(`Average per iteration: ${(totalTime / iterations).toFixed(2)}ms\n`);
+                appendResponse(`Iterations: ${iterations}\n`);
+                
+                // Cleanup benchmark data
+                await storage.clearUserMemories(userId);
+                
+            } catch (error) {
+                showResponse(`❌ Benchmark error: ${error.message}`, 'error');
+            } finally {
+                setButtonsDisabled(false);
+            }
+        }
+
+        // Event listeners
+        elements.processStatesBtn.addEventListener('click', () => processStates(false));
+        elements.forceProcessBtn.addEventListener('click', () => processStates(true));
+        elements.queryMemoryBtn.addEventListener('click', queryMemory);
+        elements.getBaseMemoryBtn.addEventListener('click', getBaseMemoryData);
+        elements.refreshStatusBtn.addEventListener('click', updateStatus);
+        elements.clearMemoryBtn.addEventListener('click', clearMemory);
+        elements.exportMemoryBtn.addEventListener('click', exportMemory);
+        elements.runBenchmarkBtn.addEventListener('click', runBenchmark);
+
+        // Auto-update user display
+        elements.userId.addEventListener('input', () => {
+            elements.currentUser.textContent = elements.userId.value;
+            updateStatus();
+        });
+
+        // Initialize
+        await updateStatus();
+        
+        console.log('🧠 Memory System Test initialized');
+        console.log('📁 Available modules:', {
+            updateMemory: typeof updateMemory,
+            getRelevantMemories: typeof getRelevantMemories,
+            getBaseMemory: typeof getBaseMemory,
+            storage: typeof storage
+        });
+    </script>
+</body>
+</html> 

@@ -1,10 +1,11 @@
-export class LLMClient {
+// 私有 LLM 客户端类
+class LLMClient {
   constructor({ model = 'google/gemini-2.5-flash', baseURL, userToken }) {
     this.model = model;
     // 统一使用网关地址
     this.baseURL = baseURL || 'https://my-llm-gateway.zy892065502.workers.dev';
     // 用户认证token - 在浏览器环境中不使用 process.env
-    this.userToken = (typeof process !== 'undefined' ? process.env.GATEWAY_USER_TOKEN : null) || 'sk-gw-7f8a9b2c4d6e1f3a5b7c9d2e4f6a8b1c';
+    this.userToken = userToken || (typeof process !== 'undefined' ? process.env.GATEWAY_USER_TOKEN : null) || 'sk-gw-7f8a9b2c4d6e1f3a5b7c9d2e4f6a8b1c';
     
     if (!this.userToken) {
       throw new Error('User token is required for gateway access');
@@ -212,4 +213,77 @@ export class LLMClient {
     
     return response;
   }
-} 
+}
+
+// 全局配置
+let globalConfig = {
+  model: 'google/gemini-2.5-flash',
+  baseURL: 'https://my-llm-gateway.zy892065502.workers.dev',
+  userToken: null
+};
+
+/**
+ * 配置全局 LLM 设置
+ */
+export function configureLLM({ model, baseURL, userToken }) {
+  if (model) globalConfig.model = model;
+  if (baseURL) globalConfig.baseURL = baseURL;
+  if (userToken) globalConfig.userToken = userToken;
+}
+
+/**
+ * 获取用户 token（从全局配置或 DOM 获取）
+ */
+function getUserToken() {
+  if (globalConfig.userToken) {
+    return globalConfig.userToken;
+  }
+  
+  // 在浏览器环境中，尝试从DOM获取token
+  if (typeof document !== 'undefined') {
+    const tokenInput = document.getElementById('userToken');
+    return tokenInput ? tokenInput.value : null;
+  }
+  
+  return null;
+}
+
+/**
+ * 创建 LLM 客户端实例
+ */
+function createClient(options = {}) {
+  const userToken = options.userToken || getUserToken();
+  
+  return new LLMClient({
+    model: options.model || globalConfig.model,
+    baseURL: options.baseURL || globalConfig.baseURL,
+    userToken
+  });
+}
+
+/**
+ * 聊天接口
+ */
+export async function chat({ messages, model, userToken, temperature = 0.7, maxTokens = 1000, ...options }) {
+  const client = createClient({ model, userToken });
+  return await client.chat({ messages, temperature, maxTokens, ...options });
+}
+
+/**
+ * 流式聊天接口
+ */
+export async function* chatStream({ messages, model, userToken, temperature = 0.7, maxTokens = 1000, ...options }) {
+  const client = createClient({ model, userToken });
+  yield* client.chatStream({ messages, temperature, maxTokens, ...options });
+}
+
+/**
+ * 嵌入接口
+ */
+export async function embedding({ input, model, userToken, ...options }) {
+  const client = createClient({ model, userToken });
+  return await client.embedding({ input, model, ...options });
+}
+
+// 为了向后兼容，仍然导出 LLMClient 类
+export { LLMClient }; 

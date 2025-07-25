@@ -22,8 +22,11 @@ export class ToolManager {
     try {
       // 注册网络搜索工具
       const { createWebSearchTool } = await import('./implementations/web-search.js');
+      const { createMemorySearchTool } = await import('./implementations/memory-search.js');
       const webSearchTool = createWebSearchTool();
+      const memorySearchTool = createMemorySearchTool();
       this.registry.register(webSearchTool);
+      this.registry.register(memorySearchTool);
       
       console.log('Built-in tools registered successfully');
     } catch (error) {

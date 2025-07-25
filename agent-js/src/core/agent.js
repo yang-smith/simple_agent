@@ -1,126 +1,219 @@
-import { Context } from './context.js';
-import { State } from './state.js';
-import { v4 as uuidv4 } from 'uuid';
+import { createStateManager, addUserMessage, addAgentMessage, addToolResult } from './state.js';
+import { createContextBuilder } from './context.js';
 
-export class Agent {
-  constructor({ llmClient, memorySystem, toolRegistry, debug = false }) {
-    this.llmClient = llmClient;
-    this.memorySystem = memorySystem;
-    this.toolRegistry = toolRegistry;
-    this.debug = debug;
-    
-    this.state = new State();
-    this.context = new Context(memorySystem, toolRegistry);
+// Agent 工厂函数
+export function createAgent(options = {}) {
+  const maxIterations = options.maxIterations || 3;
+  const maxContextLength = options.maxContextLength || 8000;
+  
+  const stateManager = createStateManager();
+  const contextBuilder = createContextBuilder({ maxContextLength });
+
+  // 添加用户消息到状态
+  function addUserMessageToState(content) {
+    return addUserMessage(content, stateManager);
   }
 
-  async processMessage(message, options = {}) {
-    const sessionId = options.sessionId || uuidv4();
-    
-    try {
-      // 更新状态
-      this.state.updateUserMessage(message, sessionId);
-      
-      // 构建上下文
-      const context = await this.context.build(message, this.state);
-      
-      // 调用LLM
-      const response = await this.llmClient.chat({
-        messages: context.messages,
-        tools: context.tools,
-        ...options
-      });
-      
-      // 处理响应和工具调用
-      const finalResponse = await this._processResponse(response, context);
-      
-      // 更新记忆
-      await this._updateMemory(message, finalResponse, sessionId);
-      
-      // 更新状态
-      this.state.updateAssistantMessage(finalResponse, sessionId);
-      
-      return finalResponse;
-      
-    } catch (error) {
-      this._log('Error processing message:', error);
-      throw error;
-    }
+  // 添加智能体回复到状态
+  function addAgentMessageToState(content) {
+    return addAgentMessage(content, stateManager);
   }
 
-  async *processMessageStream(message, options = {}) {
-    const sessionId = options.sessionId || uuidv4();
-    
-    try {
-      this.state.updateUserMessage(message, sessionId);
-      const context = await this.context.build(message, this.state);
-      
-      let fullResponse = '';
-      
-      for await (const chunk of this.llmClient.chatStream({
-        messages: context.messages,
-        tools: context.tools,
-        ...options
-      })) {
-        fullResponse += chunk;
-        yield chunk;
+  // 添加工具执行结果到状态
+  function addToolResultToState(results) {
+    return addToolResult(results, stateManager);
+  }
+
+  // 处理用户输入
+  async function processUserInput(llmCallFunction) {
+    let iteration = 0;
+
+    while (iteration < maxIterations) {
+      iteration++;
+      console.log(`\n--- 处理中 ${iteration} ---`);
+
+      // 1. 上下文工程：用当前状态生成 prompt
+      const currentState = stateManager.getState();
+      const context = await contextBuilder.createContextFromState(currentState);
+      console.log("context: \n", context);
+
+      // 2. LLM 决策：把决策外包给 LLM
+      let llmResponse;
+      try {
+        llmResponse = await llmCallFunction(context);
+        console.log(`Agent_test: ${llmResponse.substring(0, 300)}...`); // 显示前300字符
+      } catch (error) {
+        console.log(`LLM 调用失败: ${error}`);
+        break;
       }
-      
-      // 处理工具调用等后续逻辑
-      const finalResponse = await this._processResponse(fullResponse, context);
-      await this._updateMemory(message, finalResponse, sessionId);
-      this.state.updateAssistantMessage(finalResponse, sessionId);
-      
-    } catch (error) {
-      this._log('Error in stream processing:', error);
-      throw error;
-    }
-  }
 
-  async _processResponse(response, context) {
-    // 检查是否有工具调用
-    if (this._hasToolCalls(response)) {
-      return await this._executeTools(response, context);
-    }
-    
-    return response;
-  }
+      // 3. 解析并执行工具调用 - 使用tools模块的函数
+      let calls;
+      try {
+        // 先解析是否有工具调用，如果有就显示状态
+        if (llmResponse.includes('<function_calls>')) {
+          const toolNameMatch = llmResponse.match(/<invoke name="([^"]+)">/);
+          if (toolNameMatch) {
+            const toolName = toolNameMatch[1];
+            setGlobalStatus('tool_calling', `正在调用 ${toolName} 工具...`);
+          }
+        }
+        
+        const { parseAndExecuteFunctionCalls } = await import('../tools/index.js');
+        const results = await parseAndExecuteFunctionCalls(llmResponse);
+        calls = results; // parseAndExecuteFunctionCalls 已经执行了工具并返回结果
+        
+        // 工具执行完成后更新状态
+        if (calls && calls.length > 0) {
+          setGlobalStatus('thinking', '正在处理工具结果...');
+        }
+      } catch (error) {
+        console.error('Tool execution failed:', error);
+        calls = [];
+      }
 
-  _hasToolCalls(response) {
-    // 简化版本，实际需要根据LLM响应格式判断
-    return typeof response === 'object' && response.tool_calls;
-  }
+      if (!calls || calls.length === 0) {
+        // 没有工具调用，直接回复用户
+        console.log(`Agent: ${llmResponse}`);
+        addAgentMessageToState(llmResponse);
+        break;
+      }
 
-  async _executeTools(response, context) {
-    // 工具执行逻辑
-    if (response.tool_calls) {
-      for (const toolCall of response.tool_calls) {
-        const tool = this.toolRegistry.getTool(toolCall.function.name);
-        if (tool) {
-          const result = await tool.execute(toolCall.function.arguments);
-          // 处理工具执行结果
+      // 4. 处理工具调用结果
+      for (const result of calls) {
+        if (result.success) {
+          console.log(`工具 ${result.tool_name} 执行成功`);
+        } else {
+          console.log(`工具 ${result.tool_name} 执行失败: ${result.error}`);
         }
       }
+
+      // 5. 更新状态：添加工具执行结果
+      if (calls.length > 0) {
+        addToolResultToState(calls);
+      }
     }
+
+    if (iteration >= maxIterations) {
+      console.log("达到最大迭代次数");
+    }
+  }
+
+  // 设置全局状态
+  function setGlobalStatus(status, details = '') {
+    const statusData = {
+      status,
+      details,
+      timestamp: new Date().toISOString()
+    };
+    localStorage.setItem('agent_status', JSON.stringify(statusData));
     
-    return response.content || response;
+    // 触发自定义事件通知UI更新
+    window.dispatchEvent(new CustomEvent('agentStatusChange', { detail: statusData }));
   }
 
-  async _updateMemory(userMessage, assistantMessage, sessionId) {
+  // 处理单条消息并返回回复（用于API调用等场景）
+  async function processSingleMessage(message, llmCallFunction) {
     try {
-      await this.memorySystem.addInteraction({
-        userMessage,
-        assistantMessage,
-        sessionId,
-        timestamp: new Date()
-      });
+      setGlobalStatus('processing', '正在处理用户消息...');
+      
+      // 添加用户消息
+      addUserMessageToState(message);
+
+      setGlobalStatus('thinking', '正在思考回复...');
+      
+      // 生成上下文
+      const currentState = stateManager.getState();
+      const context = await contextBuilder.createContextFromState(currentState);
+
+      // 调用LLM
+      let llmResponse = await llmCallFunction(context);
+
+      // 检查是否有工具调用 - 使用tools模块的函数
+      let toolResults;
+      try {
+        // 先解析是否有工具调用，如果有就显示状态
+        if (llmResponse.includes('<function_calls>')) {
+          // 简单解析工具名称
+          const toolNameMatch = llmResponse.match(/<invoke name="([^"]+)">/);
+          if (toolNameMatch) {
+            const toolName = toolNameMatch[1];
+            setGlobalStatus('tool_calling', `正在调用 ${toolName} 工具...`);
+          }
+        }
+        
+        const { parseAndExecuteFunctionCalls } = await import('../tools/index.js');
+        toolResults = await parseAndExecuteFunctionCalls(llmResponse);
+        
+        // 工具执行完成后更新状态
+        if (toolResults && toolResults.length > 0) {
+          setGlobalStatus('thinking', '正在处理工具结果...');
+        }
+      } catch (error) {
+        console.error('Tool execution failed:', error);
+        toolResults = [];
+      }
+
+      if (toolResults && toolResults.length > 0) {
+        // 执行工具调用
+        addToolResultToState(toolResults);
+
+        setGlobalStatus('thinking', '正在整理工具执行结果...');
+        
+        // 再次调用LLM获取最终回复
+        const updatedState = stateManager.getState();
+        const updatedContext = await contextBuilder.createContextFromState(updatedState);
+        const finalResponse = await llmCallFunction(updatedContext);
+        addAgentMessageToState(finalResponse);
+        
+        setGlobalStatus('idle', '就绪');
+        return finalResponse;
+      } else {
+        // 直接回复
+        addAgentMessageToState(llmResponse);
+        setGlobalStatus('idle', '就绪');
+        return llmResponse;
+      }
     } catch (error) {
-      this._log('Memory update error:', error);
+      setGlobalStatus('error', `处理消息时出错: ${error.message}`);
+      const errorMsg = `处理消息时出错: ${error}`;
+      addAgentMessageToState(errorMsg);
+      return errorMsg;
     }
   }
 
-  _log(...args) {
-    if (this.debug) {
-      console.log('[Agent]', ...args);
-    }
+  // 获取当前状态
+  function getCurrentState() {
+    return stateManager.getState();
   }
-} 
+
+  // 清空状态
+  function clearState() {
+    stateManager.clearState();
+  }
+
+  // 获取统计信息
+  function getStats() {
+    return stateManager.getStats();
+  }
+
+  return {
+    addUserMessage: addUserMessageToState,
+    addAgentMessage: addAgentMessageToState,
+    addToolResult: addToolResultToState,
+    processUserInput,
+    processSingleMessage,
+    getCurrentState,
+    clearState,
+    getStats,
+    setGlobalStatus
+  };
+}
+
+// 创建默认Agent实例
+export const defaultAgent = createAgent();
+
+// 便捷函数
+export async function processMessage(message, llmCallFunction, agent = defaultAgent) {
+  return agent.processSingleMessage(message, llmCallFunction);
+}
