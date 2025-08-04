@@ -6,205 +6,545 @@
     <title>Agent Test</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f5f5f5;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            line-height: 1.6;
         }
+        
         .container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
             margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
+        
+        /* 配置区域样式 */
+        .config-section {
+            margin-bottom: 15px;
+        }
+        
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            padding: 5px 0;
+        }
+        
+        .config-header h1 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 1.8em;
+        }
+        
+        .toggle-icon {
+            font-size: 1.2em;
+            color: #7f8c8d;
+            transition: transform 0.3s ease;
+        }
+        
+        .toggle-icon.rotated {
+            transform: rotate(-90deg);
+        }
+        
+        .config-panel {
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            max-height: 500px;
+            opacity: 1;
+        }
+        
+        .config-panel.collapsed {
+            max-height: 0;
+            opacity: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        
+        /* 对话容器样式 */
+        .chat-container {
+            flex: 1;
+            min-height: 500px;
+        }
+        
+        .chat-container h2 {
+            margin: 0 0 20px 0;
+            color: #2c3e50;
+            text-align: center;
+            font-size: 1.5em;
+        }
+        
         .form-group {
             margin-bottom: 15px;
         }
+        
         label {
             display: block;
             margin-bottom: 5px;
-            font-weight: bold;
+            font-weight: 600;
+            color: #34495e;
         }
+        
         input, select, textarea {
             width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
             box-sizing: border-box;
+            font-size: 14px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
         button {
-            background-color: #007bff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 10px 20px;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
-            margin-right: 10px;
-            margin-bottom: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 14px;
         }
+        
         button:hover {
-            background-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
+        
         button:disabled {
-            background-color: #ccc;
+            background: #bdc3c7;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
+        
         .chat-history {
-            max-height: 400px;
+            max-height: 500px;
             overflow-y: auto;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            margin-bottom: 15px;
+            border: 1px solid #e1e8ed;
+            border-radius: 12px;
+            padding: 20px;
+            background: #f8f9fa;
+            margin-bottom: 20px;
+            scroll-behavior: smooth;
         }
+        
         .message {
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 6px;
+            display: flex;
+            margin-bottom: 16px;
+            animation: fadeInUp 0.3s ease;
         }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .message-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        
+        .message-content {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 80%;
+        }
+        
         .user-message {
-            background-color: #e3f2fd;
-            border-left: 4px solid #2196f3;
+            flex-direction: row-reverse;
         }
-        .agent-message {
-            background-color: #f1f8e9;
-            border-left: 4px solid #4caf50;
+        
+        .user-message .message-avatar {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            margin-right: 0;
+            margin-left: 12px;
         }
-        .tool-result {
-            background-color: #fff3e0;
-            border-left: 4px solid #ff9800;
-            font-family: monospace;
+        
+        .user-message .message-content {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border: 1px solid #2196f3;
+        }
+        
+        .agent-message .message-content {
+            background: linear-gradient(135deg, #f1f8e9 0%, #dcedc8 100%);
+            border: 1px solid #4caf50;
+        }
+        
+        .tool-result .message-content {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border: 1px solid #ff9800;
+            font-family: 'Monaco', 'Menlo', monospace;
             font-size: 0.9em;
         }
-        .error {
-            background-color: #ffebee;
-            border-left: 4px solid #f44336;
+        
+        .error .message-content {
+            background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+            border: 1px solid #f44336;
             color: #c62828;
         }
-        .system-info {
-            background-color: #e8f5e8;
+        
+        .status-indicator {
+            background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
             border: 1px solid #4caf50;
             color: #2e7d32;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: 600;
         }
-        .warning {
-            background-color: #fff8e1;
-            border: 1px solid #ffc107;
-            color: #f57c00;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
+        
+        .input-section {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e1e8ed;
         }
+        
+        .input-area {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            margin-bottom: 15px;
+        }
+        
+        .input-area textarea {
+            flex: 1;
+            resize: vertical;
+            min-height: 50px;
+            max-height: 150px;
+        }
+        
+        .send-button {
+            height: 50px;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 100px;
+            justify-content: center;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .action-btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            border-radius: 6px;
+        }
+        
+        .clear-btn {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        
+        .stats-btn {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        }
+        
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
             margin-top: 20px;
         }
+        
         .stat-card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            border-left: 4px solid #007bff;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            text-align: center;
+            transition: transform 0.3s ease;
         }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+        
         .stat-title {
-            font-weight: bold;
+            font-weight: 600;
             color: #495057;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            font-size: 14px;
         }
+        
         .stat-value {
-            font-size: 1.2em;
-            color: #007bff;
+            font-size: 1.8em;
+            color: #667eea;
+            font-weight: bold;
         }
-        .input-area {
+        
+        .control-panel {
             display: flex;
             gap: 10px;
-            align-items: flex-end;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
         }
-        .input-area textarea {
-            flex: 1;
-            resize: vertical;
-            min-height: 60px;
+        
+        .ctrl-btn {
+            padding: 8px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
         }
-        .send-button {
-            height: 60px;
-            padding: 0 20px;
+        
+        .states-display {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        
+        /* States 相关样式 */
+        .states-formatted {
+            padding: 15px;
+        }
+        
+        .state-item {
+            background: white;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .state-item:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+        
+        .state-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 12px 16px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .state-type {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .state-time {
+            font-size: 0.85em;
+            color: #6c757d;
+        }
+        
+        .state-content {
+            padding: 16px;
+        }
+        
+        .message-content-state {
+            line-height: 1.6;
+            color: #495057;
+        }
+        
+        .tool-content {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+        }
+        
+        .error-content {
+            background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+            padding: 12px;
+            border-radius: 6px;
+            color: #c62828;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+        }
+        
+        .generic-content {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+        }
+        
+        .states-raw {
+            padding: 20px;
+        }
+        
+        .states-raw pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.6;
+            margin: 0;
+        }
+        
+        .states-raw code {
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+            
+            .input-area {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .send-button {
+                width: 100%;
+                height: 45px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .control-panel {
+                justify-content: center;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🤖 Agent System Test</h1>
-        
-        <div id="systemStatus" class="system-info" style="display: none;">
-            ✅ Agent系统已初始化完成
+    <div class="container config-section">
+        <div class="config-header" id="configHeader">
+            <h1>🤖 Agent System Test</h1>
+            <span id="configToggle" class="toggle-icon">▼</span>
         </div>
         
-        <div id="initError" class="warning" style="display: none;">
-            ⚠️ 系统初始化中遇到问题，请查看控制台
-        </div>
-        
-        <div class="form-group">
-            <label for="userToken">User Token (Required):</label>
-            <input type="password" id="userToken" placeholder="Enter your gateway user token" value="sk-gw-7f8a9b2c4d6e1f3a5b7c9d2e4f6a8b1c">
-        </div>
-        
-        <div class="form-group">
-            <label for="model">Model:</label>
-            <select id="model">
-                <option value="anthropic/claude-4-sonnet-20250522">anthropic/claude-4-sonnet-20250522</option>
-                <option value="google/gemini-2.5-pro" selected>google/gemini-2.5-pro</option>
-                <option value="google/gemini-2.5-flash" selected>Google Gemini 2.5 Flash</option>
-            </select>
-        </div>
+        <div id="configPanel" class="config-panel collapsed">
+            <div id="systemStatus" class="system-info" style="display: none;">
+                ✅ Agent系统已初始化完成
+            </div>
+            
+            <div id="initError" class="warning" style="display: none;">
+                ⚠️ 系统初始化中遇到问题，请查看控制台
+            </div>
+            
+            <div class="form-group">
+                <label for="userToken">User Token (Required):</label>
+                <input type="password" id="userToken" placeholder="Enter your gateway user token" value="sk-gw-7f8a9b2c4d6e1f3a5b7c9d2e4f6a8b1c">
+            </div>
+            
+            <div class="form-group">
+                <label for="model">Model:</label>
+                <select id="model">
+                    <option value="anthropic/claude-4-sonnet-20250522">anthropic/claude-4-sonnet-20250522</option>
+                    <option value="google/gemini-2.5-pro" selected>google/gemini-2.5-pro</option>
+                    <option value="google/gemini-2.5-flash" selected>Google Gemini 2.5 Flash</option>
+                </select>
+            </div>
 
-        <div class="form-group">
-            <label for="maxIterations">Max Iterations:</label>
-            <input type="number" id="maxIterations" min="1" max="10" value="3">
-        </div>
+            <div class="form-group">
+                <label for="maxIterations">Max Iterations:</label>
+                <input type="number" id="maxIterations" min="1" max="10" value="3">
+            </div>
 
-        <div class="form-group">
-            <label for="maxContextLength">Max Context Length:</label>
-            <input type="number" id="maxContextLength" min="1000" max="16000" value="8000">
+            <div class="form-group">
+                <label for="maxContextLength">Max Context Length:</label>
+                <input type="number" id="maxContextLength" min="1000" max="16000" value="8000">
+            </div>
         </div>
     </div>
 
-    <div class="container">
-        <h2>💬 Chat Interface</h2>
+    <div class="container chat-container">
+        <h2>💬 AI助手对话</h2>
         
         <div id="chatHistory" class="chat-history">
             <div class="message agent-message">
-                <strong>Agent:</strong> 你好！我是你的AI助手。我可以帮你搜索信息、查询记忆，以及处理各种任务。有什么我可以帮助你的吗？
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <strong>AI助手:</strong> 你好！我是你的AI助手。我可以帮你搜索信息、查询记忆，以及处理各种任务。有什么我可以帮助你的吗？
+                </div>
             </div>
         </div>
         
-        <div id="agentStatus" class="system-info" style="display: none;">
+        <div id="agentStatus" class="status-indicator" style="display: none;">
             <div id="statusText">🤖 就绪</div>
         </div>
         
-        <div class="input-area">
-            <textarea id="userInput" placeholder="输入你的消息..." rows="3"></textarea>
-            <button id="sendMessage" class="send-button">发送</button>
-        </div>
-        
-        <div style="margin-top: 15px;">
-            <button id="clearChat">清空对话</button>
-            <button id="showStats">显示统计</button>
-            <button id="testScenario1">测试场景1: 网络搜索</button>
-            <button id="testScenario2">测试场景2: 记忆系统</button>
-            <button id="testScenario3">测试场景3: 多工具调用</button>
+        <div class="input-section">
+            <div class="input-area">
+                <textarea id="userInput" placeholder="在这里输入你的消息..." rows="2"></textarea>
+                <button id="sendMessage" class="send-button">
+                    <span class="button-text">发送</span>
+                    <span class="button-icon">📤</span>
+                </button>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="clearChat" class="action-btn clear-btn">🗑️ 清空对话</button>
+                <button id="showStats" class="action-btn stats-btn">📊 统计信息</button>
+            </div>
         </div>
     </div>
 
-    <div class="container">
-        <h2>📊 Agent Statistics</h2>
+    <div class="container stats-container" id="statsSection">
+        <h3>📊 对话统计</h3>
         <div id="statsContainer" class="stats">
             <!-- 统计信息将在这里动态显示 -->
+        </div>
+    </div>
+
+    <div class="container states-container" id="statesSection">
+        <h3>🔍 系统状态</h3>
+        <div class="control-panel">
+            <button id="refreshStates" class="ctrl-btn">🔄 刷新</button>
+            <button id="toggleStatesView" class="ctrl-btn">👁️ 切换视图</button>
+            <button id="exportStates" class="ctrl-btn">📤 导出</button>
+            <button id="importStates" class="ctrl-btn">📥 导入</button>
+        </div>
+        <div id="statesContainer" class="states-display">
+            <!-- 状态信息将在这里动态显示 -->
         </div>
     </div>
 
@@ -213,8 +553,31 @@
         import { LLMClient } from './src/llm/llm-client.js';
         import { initializeTools } from './src/tools/index.js';
         
+        // 切换配置面板显示/隐藏 - 移到前面定义
+        function toggleConfig() {
+            const panel = document.getElementById('configPanel');
+            const toggle = document.getElementById('configToggle');
+            
+            panel.classList.toggle('collapsed');
+            toggle.classList.toggle('rotated');
+        }
+
+        // 初始化时显示状态
+        function showInitialStatus() {
+            const savedStatus = localStorage.getItem('agent_status');
+            if (savedStatus) {
+                try {
+                    const statusData = JSON.parse(savedStatus);
+                    window.dispatchEvent(new CustomEvent('agentStatusChange', { detail: statusData }));
+                } catch (e) {
+                    // 忽略解析错误
+                }
+            }
+        }
+        
         let agent = null;
         let llmClient = null;
+        let statesViewMode = 'formatted'; // 'formatted' or 'raw'
         
         // DOM 元素
         const chatHistory = document.getElementById('chatHistory');
@@ -227,6 +590,11 @@
         const statusText = document.getElementById('statusText');
         const initError = document.getElementById('initError');
         const statsContainer = document.getElementById('statsContainer');
+        const statesContainer = document.getElementById('statesContainer');
+        const refreshStatesButton = document.getElementById('refreshStates');
+        const toggleStatesViewButton = document.getElementById('toggleStatesView');
+        const exportStatesButton = document.getElementById('exportStates');
+        const importStatesButton = document.getElementById('importStates');
         
         // 状态图标映射
         const statusIcons = {
@@ -269,6 +637,9 @@
                 agent = createAgent(options);
                 console.log('✅ Agent created');
                 
+                // 恢复保存的状态
+                restoreAgentState();
+                
                 // 创建LLM客户端
                 createLLMClient();
                 console.log('✅ LLM client ready');
@@ -303,7 +674,7 @@
             });
         }
         
-        // LLM调用函数
+        // LLM调用函数 - 改为流式版本
         async function llmCall(context) {
             if (!llmClient) {
                 createLLMClient();
@@ -311,42 +682,232 @@
             
             try {
                 console.log('🔍 Sending messages to LLM:', context);
-                const response = await llmClient.chat({
+                
+                // 使用流式接口
+                let fullResponse = '';
+                const responseGenerator = llmClient.chatStream({
                     messages: context,
                     temperature: 0.7,
                     maxTokens: 2000
                 });
-                console.log('🤖 LLM Response:', response);
-                return response;
+                
+                for await (const chunk of responseGenerator) {
+                    fullResponse += chunk;
+                }
+                
+                console.log('🤖 LLM Response:', fullResponse);
+                return fullResponse;
             } catch (error) {
                 throw new Error(`LLM调用失败: ${error.message}`);
             }
         }
         
-        // 添加消息到聊天历史
+        // 简单的markdown转HTML函数
+        function markdownToHtml(text) {
+            return text
+                // 代码块 ```code```
+                .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
+                // 行内代码 `code`
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                // 粗体 **text**
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                // 斜体 *text*
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                // 链接 [text](url)
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+                // 换行
+                .replace(/\n/g, '<br>');
+        }
+
+        // 添加消息到聊天历史 - 修改以支持markdown
         function addMessageToHistory(content, type = 'user', isError = false) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}-message`;
             if (isError) messageDiv.classList.add('error');
             
-            const typeLabel = {
-                'user': '用户',
-                'agent': 'Agent',
-                'tool': '工具执行',
-                'system': '系统'
-            }[type] || type;
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            const typeConfig = {
+                'user': { icon: '👤', label: '你' },
+                'agent': { icon: '🤖', label: 'AI助手' },
+                'tool': { icon: '🔧', label: '工具' },
+                'system': { icon: '⚙️', label: '系统' }
+            };
+            
+            const config = typeConfig[type] || { icon: '📝', label: type };
+            avatar.textContent = config.icon;
             
             if (type === 'tool') {
-                messageDiv.innerHTML = `<strong>${typeLabel}:</strong><br><pre>${content}</pre>`;
+                messageContent.innerHTML = `<strong>${config.label}:</strong><br><pre>${content}</pre>`;
+            } else if (type === 'agent') {
+                // AI消息支持markdown
+                const htmlContent = markdownToHtml(content);
+                messageContent.innerHTML = `<strong>${config.label}:</strong> <div class="message-text">${htmlContent}</div>`;
             } else {
-                messageDiv.innerHTML = `<strong>${typeLabel}:</strong> ${content}`;
+                messageContent.innerHTML = `<strong>${config.label}:</strong> ${content}`;
             }
             
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
             chatHistory.appendChild(messageDiv);
             chatHistory.scrollTop = chatHistory.scrollHeight;
         }
         
-        // 发送消息
+        // 更新统计信息 - 简化版本
+        function updateStats() {
+            if (!agent) return;
+            
+            const stats = agent.getStats();
+            
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-title">总对话轮次</div>
+                    <div class="stat-value">${stats.eventTypes.user_message || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">工具调用次数</div>
+                    <div class="stat-value">${stats.eventTypes.tool_result || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">会话时长</div>
+                    <div class="stat-value">${getSessionDuration(stats)}</div>
+                </div>
+            `;
+        }
+        
+        // 计算会话时长
+        function getSessionDuration(stats) {
+            if (!stats.firstEvent || !stats.lastEvent) return '0分钟';
+            
+            const duration = new Date(stats.lastEvent) - new Date(stats.firstEvent);
+            const minutes = Math.floor(duration / (1000 * 60));
+            
+            if (minutes < 1) return '< 1分钟';
+            if (minutes < 60) return `${minutes}分钟`;
+            
+            const hours = Math.floor(minutes / 60);
+            const remainingMinutes = minutes % 60;
+            return `${hours}小时${remainingMinutes}分钟`;
+        }
+        
+        // 更新状态显示
+        function updateStates() {
+            if (!agent) {
+                statesContainer.innerHTML = '<div class="warning">Agent未初始化</div>';
+                return;
+            }
+            
+            const states = agent.getCurrentState();
+            
+            if (!states || states.length === 0) {
+                statesContainer.innerHTML = '<div class="system-info">暂无状态数据</div>';
+                return;
+            }
+            
+            if (statesViewMode === 'raw') {
+                // 原始JSON视图
+                statesContainer.innerHTML = `
+                    <div class="states-raw">
+                        <pre><code>${JSON.stringify(states, null, 2)}</code></pre>
+                    </div>
+                `;
+            } else {
+                // 格式化视图
+                const formattedStates = states.map((state, index) => {
+                    const timestamp = new Date(state.timestamp).toLocaleString('zh-CN');
+                    const typeIcon = getStateTypeIcon(state.type);
+                    
+                    return `
+                        <div class="state-item" data-index="${index}">
+                            <div class="state-header">
+                                <span class="state-type">${typeIcon} ${state.type}</span>
+                                <span class="state-time">${timestamp}</span>
+                            </div>
+                            <div class="state-content">
+                                ${formatStateContent(state)}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                statesContainer.innerHTML = `
+                    <div class="states-formatted">
+                        ${formattedStates}
+                    </div>
+                `;
+            }
+        }
+        
+        // 获取状态类型图标
+        function getStateTypeIcon(type) {
+            const icons = {
+                'user_message': '👤',
+                'agent_message': '🤖',
+                'tool_result': '🔧',
+                'tool_call': '⚙️',
+                'error': '❌',
+                'system': '⚡'
+            };
+            return icons[type] || '📝';
+        }
+        
+        // 格式化状态内容
+        function formatStateContent(state) {
+            const data = state.data || {};
+            
+            switch (state.type) {
+                case 'user_message':
+                case 'agent_message':
+                    return `<div class="message-content-state">${data.content || 'N/A'}</div>`;
+                    
+                case 'tool_result':
+                    const results = data.results || [];
+                    if (results.length === 0) return '<div class="tool-content">无工具结果</div>';
+                    
+                    return results.map(result => `
+                        <div class="tool-content">
+                            <strong>工具:</strong> ${result.tool_name || 'Unknown'}<br>
+                            <strong>状态:</strong> ${result.success ? '✅ 成功' : '❌ 失败'}<br>
+                            ${result.success ? 
+                                `<strong>结果:</strong> ${JSON.stringify(result.result || {}, null, 2)}` : 
+                                `<strong>错误:</strong> ${result.error || 'Unknown error'}`
+                            }
+                        </div>
+                    `).join('');
+                    
+                case 'tool_call':
+                    return `
+                        <div class="tool-content">
+                            <strong>工具名:</strong> ${data.toolName || 'N/A'}<br>
+                            <strong>参数:</strong> ${JSON.stringify(data.parameters || {}, null, 2)}
+                        </div>
+                    `;
+                    
+                case 'error':
+                    return `
+                        <div class="error-content">
+                            <strong>错误:</strong> ${data.error || 'N/A'}<br>
+                            ${data.stack ? `<strong>堆栈:</strong><pre>${data.stack}</pre>` : ''}
+                        </div>
+                    `;
+                    
+                default:
+                    return `<div class="generic-content">${JSON.stringify(data, null, 2)}</div>`;
+            }
+        }
+        
+        // 切换状态视图模式
+        function toggleStatesView() {
+            statesViewMode = statesViewMode === 'formatted' ? 'raw' : 'formatted';
+            toggleStatesViewButton.textContent = statesViewMode === 'formatted' ? '切换到原始视图' : '切换到格式化视图';
+            updateStates();
+        }
+        
+        // 流式发送消息
         async function sendMessage() {
             const message = userInput.value.trim();
             if (!message) return;
@@ -361,57 +922,175 @@
             userInput.value = '';
             sendButton.disabled = true;
             
+            // 创建AI回复的消息容器
+            const aiMessageDiv = createMessageContainer('agent');
+            const messageContent = aiMessageDiv.querySelector('.message-content');
+            
             try {
-                // 使用Agent处理消息
-                const response = await agent.processSingleMessage(message, llmCall);
+                // 使用Agent处理消息 - 流式版本
+                await processSingleMessageStream(message, messageContent);
                 
-                // 显示Agent回复
-                addMessageToHistory(response, 'agent');
+                // 保存状态到localStorage
+                saveAgentState();
                 
-                // 更新统计信息
+                // 更新统计信息和状态
                 updateStats();
+                updateStates();
                 
             } catch (error) {
                 console.error('Message processing error:', error);
-                addMessageToHistory(`处理消息时出错: ${error.message}`, 'system', true);
+                messageContent.innerHTML = `<strong>AI助手:</strong> <span class="error-text">处理消息时出错: ${error.message}</span>`;
             } finally {
                 sendButton.disabled = false;
             }
         }
-        
-        // 更新统计信息
-        function updateStats() {
-            if (!agent) return;
+
+        // 创建消息容器
+        function createMessageContainer(type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
             
-            const stats = agent.getStats();
-            const state = agent.getCurrentState();
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
             
-            statsContainer.innerHTML = `
-                <div class="stat-card">
-                    <div class="stat-title">总事件数</div>
-                    <div class="stat-value">${stats.totalEvents}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">用户消息</div>
-                    <div class="stat-value">${stats.eventTypes.user_message || 0}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">Agent回复</div>
-                    <div class="stat-value">${stats.eventTypes.agent_message || 0}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">工具调用</div>
-                    <div class="stat-value">${stats.eventTypes.tool_result || 0}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">首次事件</div>
-                    <div class="stat-value">${stats.firstEvent ? new Date(stats.firstEvent).toLocaleTimeString() : 'N/A'}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">最新事件</div>
-                    <div class="stat-value">${stats.lastEvent ? new Date(stats.lastEvent).toLocaleTimeString() : 'N/A'}</div>
-                </div>
-            `;
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            
+            const typeConfig = {
+                'user': { icon: '👤', label: '你' },
+                'agent': { icon: '🤖', label: 'AI助手' },
+                'tool': { icon: '🔧', label: '工具' },
+                'system': { icon: '⚙️', label: '系统' }
+            };
+            
+            const config = typeConfig[type] || { icon: '📝', label: type };
+            avatar.textContent = config.icon;
+            
+            // 初始化内容
+            messageContent.innerHTML = `<strong>${config.label}:</strong> <span class="typing-indicator">正在输入...</span>`;
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            chatHistory.appendChild(messageDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        // 流式处理单条消息 - 修改显示部分
+        async function processSingleMessageStream(message, messageContentElement) {
+            try {
+                agent.setGlobalStatus('processing', '正在处理用户消息...');
+                
+                // 添加用户消息到状态
+                agent.addUserMessage(message);
+                
+                agent.setGlobalStatus('thinking', '正在思考回复...');
+                
+                // 生成上下文
+                const currentState = agent.getCurrentState();
+                const { createContextBuilder } = await import('./src/core/context.js');
+                const contextBuilder = createContextBuilder({ maxContextLength: 8000 });
+                const context = await contextBuilder.createContextFromState(currentState);
+                
+                // 流式调用LLM
+                let fullResponse = '';
+                let displayText = '';
+                
+                if (!llmClient) {
+                    createLLMClient();
+                }
+                
+                const responseGenerator = llmClient.chatStream({
+                    messages: context,
+                    temperature: 0.7,
+                    maxTokens: 2000
+                });
+                
+                // 流式更新显示
+                for await (const chunk of responseGenerator) {
+                    fullResponse += chunk;
+                    displayText += chunk;
+                    
+                    // 实时更新消息内容 - 支持markdown
+                    const htmlContent = markdownToHtml(displayText);
+                    messageContentElement.innerHTML = `<strong>AI助手:</strong> <div class="message-text">${htmlContent}<span class="cursor">|</span></div>`;
+                    chatHistory.scrollTop = chatHistory.scrollHeight;
+                    
+                    // 添加小延迟以获得更好的视觉效果
+                    await new Promise(resolve => setTimeout(resolve, 20));
+                }
+                
+                // 移除光标
+                const htmlContent = markdownToHtml(displayText);
+                messageContentElement.innerHTML = `<strong>AI助手:</strong> <div class="message-text">${htmlContent}</div>`;
+                
+                // 检查是否有工具调用
+                let toolResults;
+                try {
+                    if (fullResponse.includes('<function_calls>')) {
+                        agent.setGlobalStatus('tool_calling', '正在调用工具...');
+                        
+                        const { parseAndExecuteFunctionCalls } = await import('./src/tools/index.js');
+                        toolResults = await parseAndExecuteFunctionCalls(fullResponse);
+                        
+                        if (toolResults && toolResults.length > 0) {
+                            agent.setGlobalStatus('thinking', '正在处理工具结果...');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Tool execution failed:', error);
+                    toolResults = [];
+                }
+                
+                if (toolResults && toolResults.length > 0) {
+                    // 执行工具调用
+                    agent.addToolResult(toolResults);
+                    
+                    // 显示工具执行指示
+                    const htmlContent = markdownToHtml(displayText);
+                    messageContentElement.innerHTML = `<strong>AI助手:</strong> <div class="message-text">${htmlContent}</div><small class="tool-indicator">🔧 正在整理工具执行结果...</small>`;
+                    
+                    // 再次调用LLM获取最终回复
+                    const updatedState = agent.getCurrentState();
+                    const updatedContext = await contextBuilder.createContextFromState(updatedState);
+                    
+                    const finalResponseGenerator = llmClient.chatStream({
+                        messages: updatedContext,
+                        temperature: 0.7,
+                        maxTokens: 2000
+                    });
+                    
+                    let finalResponse = '';
+                    let finalDisplayText = displayText + '\n\n';
+                    
+                    // 流式显示最终回复
+                    for await (const chunk of finalResponseGenerator) {
+                        finalResponse += chunk;
+                        finalDisplayText += chunk;
+                        
+                        const finalHtmlContent = markdownToHtml(finalDisplayText);
+                        messageContentElement.innerHTML = `<strong>AI助手:</strong> <div class="message-text">${finalHtmlContent}<span class="cursor">|</span></div>`;
+                        chatHistory.scrollTop = chatHistory.scrollHeight;
+                        
+                        await new Promise(resolve => setTimeout(resolve, 20));
+                    }
+                    
+                    // 最终显示
+                    const finalHtmlContent = markdownToHtml(finalDisplayText);
+                    messageContentElement.innerHTML = `<strong>AI助手:</strong> <div class="message-text">${finalHtmlContent}</div>`;
+                    agent.addAgentMessage(finalResponse);
+                } else {
+                    // 直接回复
+                    agent.addAgentMessage(fullResponse);
+                }
+                
+                agent.setGlobalStatus('idle', '就绪');
+                
+            } catch (error) {
+                agent.setGlobalStatus('error', `处理消息时出错: ${error.message}`);
+                throw error;
+            }
         }
         
         // 清空对话
@@ -419,38 +1098,241 @@
             if (agent) {
                 agent.clearState();
             }
+            
+            // 清除保存的状态
+            clearSavedState();
+            
             chatHistory.innerHTML = `
                 <div class="message agent-message">
-                    <strong>Agent:</strong> 对话已清空。我们可以重新开始！
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-content">
+                        <strong>AI助手:</strong> 对话已清空。我们可以重新开始！
+                    </div>
                 </div>
             `;
             updateStats();
+            updateStates();
         }
         
-        // 测试场景
-        const testScenarios = {
-            scenario1: "请帮我搜索一下今天的天气情况",
-            scenario2: "请记住我的名字是张三，我喜欢编程和阅读",
-            scenario3: "请搜索最新的AI技术发展，并把重要信息保存到记忆中"
-        };
-        
-        async function runTestScenario(scenarioKey) {
-            const message = testScenarios[scenarioKey];
-            if (!message) return;
+        // 保存状态到localStorage
+        function saveAgentState() {
+            if (!agent) return;
             
-            userInput.value = message;
-            await sendMessage();
+            const state = agent.getCurrentState();
+            try {
+                localStorage.setItem('agent_conversation_state', JSON.stringify({
+                    timestamp: new Date().toISOString(),
+                    events: state
+                }));
+                console.log('💾 状态已保存到本地存储');
+            } catch (error) {
+                console.warn('保存状态失败:', error);
+            }
+        }
+        
+        // 从localStorage恢复状态
+        function restoreAgentState() {
+            if (!agent) return;
+            
+            try {
+                const savedData = localStorage.getItem('agent_conversation_state');
+                if (savedData) {
+                    const { timestamp, events } = JSON.parse(savedData);
+                    
+                    if (events && events.length > 0) {
+                        // 恢复每个事件到state manager
+                        events.forEach(event => {
+                            // 直接使用agent的内部状态管理器添加事件
+                            const stateManager = agent.getCurrentState ? agent : null;
+                            if (stateManager) {
+                                // 通过调用相应的添加方法来恢复状态
+                                switch (event.type) {
+                                    case 'user_message':
+                                        agent.addUserMessage(event.data.content);
+                                        break;
+                                    case 'agent_message':
+                                        agent.addAgentMessage(event.data.content);
+                                        break;
+                                    case 'tool_result':
+                                        agent.addToolResult(event.data.results);
+                                        break;
+                                }
+                            }
+                        });
+                        
+                        // 恢复聊天历史显示
+                        restoreChatHistory(events);
+                        
+                        console.log(`🔄 已恢复 ${events.length} 个历史事件 (保存于 ${new Date(timestamp).toLocaleString()})`);
+                        
+                        // 更新显示
+                        updateStats();
+                        updateStates();
+                    }
+                }
+            } catch (error) {
+                console.warn('恢复状态失败:', error);
+                // 如果恢复失败，清除损坏的数据
+                localStorage.removeItem('agent_conversation_state');
+            }
+        }
+        
+        // 恢复聊天历史显示 - 更新版本
+        function restoreChatHistory(events) {
+            // 清空当前显示的历史
+            chatHistory.innerHTML = '';
+            
+            events.forEach(event => {
+                switch (event.type) {
+                    case 'user_message':
+                        addMessageToHistory(event.data.content, 'user');
+                        break;
+                    case 'agent_message':
+                        addMessageToHistory(event.data.content, 'agent');
+                        break;
+                    case 'tool_result':
+                        // 可选：显示工具执行结果
+                        const results = event.data.results || [];
+                        if (results.length > 0) {
+                            const toolSummary = results.map(r => 
+                                `${r.tool_name}: ${r.success ? '成功' : '失败'}`
+                            ).join(', ');
+                            addMessageToHistory(`工具执行: ${toolSummary}`, 'tool');
+                        }
+                        break;
+                }
+            });
+            
+            // 如果没有历史记录，显示欢迎消息
+            if (events.length === 0) {
+                const welcomeDiv = document.createElement('div');
+                welcomeDiv.className = 'message agent-message';
+                welcomeDiv.innerHTML = `
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-content">
+                        <strong>AI助手:</strong> 你好！我是你的AI助手。我可以帮你搜索信息、查询记忆，以及处理各种任务。有什么我可以帮助你的吗？
+                    </div>
+                `;
+                chatHistory.appendChild(welcomeDiv);
+            }
+        }
+        
+        // 清除保存的状态
+        function clearSavedState() {
+            try {
+                localStorage.removeItem('agent_conversation_state');
+                console.log('🗑️ 已清除保存的对话状态');
+            } catch (error) {
+                console.warn('清除保存状态失败:', error);
+            }
+        }
+
+        // 导出状态到文件
+        function exportStates() {
+            if (!agent) {
+                alert('Agent未初始化');
+                return;
+            }
+            
+            const state = agent.getCurrentState();
+            const exportData = {
+                timestamp: new Date().toISOString(),
+                version: '1.0',
+                events: state
+            };
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `agent-state-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log('📤 状态已导出到文件');
+        }
+        
+        // 导入状态从文件
+        function importStates() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const text = await file.text();
+                    const importData = JSON.parse(text);
+                    
+                    if (importData.events && Array.isArray(importData.events)) {
+                        // 确认导入
+                        const confirmed = confirm(
+                            `确定要导入 ${importData.events.length} 个事件吗？\n` +
+                            `导入时间: ${new Date(importData.timestamp).toLocaleString()}\n` +
+                            `这将清空当前对话。`
+                        );
+                        
+                        if (confirmed && agent) {
+                            // 清空当前状态
+                            agent.clearState();
+                            
+                            // 恢复导入的状态
+                            importData.events.forEach(event => {
+                                switch (event.type) {
+                                    case 'user_message':
+                                        agent.addUserMessage(event.data.content);
+                                        break;
+                                    case 'agent_message':
+                                        agent.addAgentMessage(event.data.content);
+                                        break;
+                                    case 'tool_result':
+                                        agent.addToolResult(event.data.results);
+                                        break;
+                                }
+                            });
+                            
+                            // 恢复聊天历史显示
+                            restoreChatHistory(importData.events);
+                            
+                            // 保存到localStorage
+                            saveAgentState();
+                            
+                            // 更新显示
+                            updateStats();
+                            updateStates();
+                            
+                            console.log('📥 状态已从文件导入');
+                            alert('状态导入成功！');
+                        }
+                    } else {
+                        alert('无效的状态文件格式');
+                    }
+                } catch (error) {
+                    console.error('导入状态失败:', error);
+                    alert('导入失败: ' + error.message);
+                }
+            };
+            
+            input.click();
         }
         
         // 事件监听器
         sendButton.addEventListener('click', sendMessage);
         clearButton.addEventListener('click', clearChat);
         showStatsButton.addEventListener('click', updateStats);
+        refreshStatesButton.addEventListener('click', updateStates);
+        toggleStatesViewButton.addEventListener('click', toggleStatesView);
+        exportStatesButton.addEventListener('click', exportStates);
+        importStatesButton.addEventListener('click', importStates);
         
-        document.getElementById('testScenario1').addEventListener('click', () => runTestScenario('scenario1'));
-        document.getElementById('testScenario2').addEventListener('click', () => runTestScenario('scenario2'));
-        document.getElementById('testScenario3').addEventListener('click', () => runTestScenario('scenario3'));
-        
+        // 添加配置头部点击事件
+        document.getElementById('configHeader').addEventListener('click', toggleConfig);
+
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -473,27 +1355,28 @@
             }
         });
 
-        // 初始化时显示状态
-        function showInitialStatus() {
-            const savedStatus = localStorage.getItem('agent_status');
-            if (savedStatus) {
-                try {
-                    const statusData = JSON.parse(savedStatus);
-                    window.dispatchEvent(new CustomEvent('agentStatusChange', { detail: statusData }));
-                } catch (e) {
-                    // 忽略解析错误
-                }
-            }
-        }
-        
-        // 页面加载完成后初始化系统
+        // 在页面加载完成后初始化配置面板状态
         document.addEventListener('DOMContentLoaded', () => {
+            // 默认收起配置面板
+            const panel = document.getElementById('configPanel');
+            const toggle = document.getElementById('configToggle');
+            if (panel && toggle) {
+                panel.classList.add('collapsed');
+                toggle.classList.add('rotated');
+            }
+            
             showInitialStatus();
             initializeSystem();
         });
         
+        // 页面卸载前保存状态
+        window.addEventListener('beforeunload', () => {
+            saveAgentState();
+        });
+
         // 初始化统计显示
         updateStats();
+        updateStates();
     </script>
 </body>
 </html> 
