@@ -687,8 +687,8 @@
                 let fullResponse = '';
                 const responseGenerator = llmClient.chatStream({
                     messages: context,
-                    temperature: 0.7,
-                    maxTokens: 2000
+                    temperature: 0.3,
+                    maxTokens: 8000
                 });
                 
                 for await (const chunk of responseGenerator) {
@@ -1003,8 +1003,8 @@
                 
                 const responseGenerator = llmClient.chatStream({
                     messages: context,
-                    temperature: 0.7,
-                    maxTokens: 2000
+                    temperature: 0.3,
+                    maxTokens: 8000
                 });
                 
                 // 流式更新显示
@@ -1057,8 +1057,8 @@
                     
                     const finalResponseGenerator = llmClient.chatStream({
                         messages: updatedContext,
-                        temperature: 0.7,
-                        maxTokens: 2000
+                        temperature: 0.3,
+                        maxTokens: 8000
                     });
                     
                     let finalResponse = '';

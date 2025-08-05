@@ -3,6 +3,7 @@
  */
 import { processStates, performBatchCognitiveReconstruction } from './memory-processor.js';
 import * as storage from './storage.js';
+import { defaultConfig } from './base.js';
 
 const checkAndReconstruct = async (userId, config) => {
   try {
@@ -35,7 +36,7 @@ const checkAndReconstruct = async (userId, config) => {
   }
 };
 
-export const updateMemory = async (states, userId = 'default', config, forceProcess = false) => {
+export const updateMemory = async (states, userId = 'default', config = defaultConfig, forceProcess = false) => {
   if (!states || states.length === 0) return;
   
   try {

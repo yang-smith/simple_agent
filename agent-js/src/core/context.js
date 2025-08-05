@@ -142,8 +142,8 @@ function调用原则：
     
     // 异步调度记忆更新
     try {
-      const { scheduleMemoryUpdate } = await import('../memory-system/index.js');
-      await scheduleMemoryUpdate(statesForMemory, { userId: "default", forceProcess: true });
+      const { updateMemory } = await import('../memory-system/index.js');
+      await updateMemory(statesForMemory, { userId: "default", forceProcess: true });
       console.log(`已调度 ${oldestEvents.length} 个事件的记忆存储`);
     } catch (error) {
       console.warn('Memory update scheduling failed:', error);

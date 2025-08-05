@@ -30,7 +30,7 @@ class LLMClient {
     }
   }
 
-  async *chatStream({ messages, temperature = 0.7, maxTokens = 1000, ...options }) {
+  async *chatStream({ messages, temperature = 0.7, maxTokens = 8000, ...options }) {
     try {
       const requestBody = this._buildChatRequest({
         messages,
@@ -272,7 +272,7 @@ export async function chat({ messages, model, userToken, temperature = 0.7, maxT
 /**
  * 流式聊天接口
  */
-export async function* chatStream({ messages, model, userToken, temperature = 0.7, maxTokens = 1000, ...options }) {
+export async function* chatStream({ messages, model, userToken, temperature = 0.7, maxTokens = 8000, ...options }) {
   const client = createClient({ model, userToken });
   yield* client.chatStream({ messages, temperature, maxTokens, ...options });
 }
