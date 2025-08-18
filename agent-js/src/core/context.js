@@ -7,7 +7,7 @@ export function createContextBuilder(options = {}) {
     _formatEvents,
     _getBaseInfoSection,
     _getOutputFormat,
-    _truncateContext
+    // _truncateContext // 移除原有的截断逻辑，因为现在由Agent层管理
   };
 
   async function createContextFromState(events) {
@@ -37,9 +37,10 @@ export function createContextBuilder(options = {}) {
 
     let fullContext = contextParts.join("\n\n");
     
-    // 如果超长，进行智能截断
-    if (fullContext.length > maxContextLength) {
-      fullContext = await _truncateContext(fullContext, events);
+    // 移除原有的截断逻辑，因为现在由Agent层管理
+    // 这里只做最后的安全检查
+    if (fullContext.length > maxContextLength * 1.2) {
+      console.log("fullContext.length: ", fullContext.length);
     }
         
     messages.push({
@@ -121,51 +122,7 @@ function调用原则：
 \`\`\``;
   }
   
-  async function _truncateContext(context, events) {
-    // 如果事件数量少于3个，直接保留最近的事件
-    if (events.length <= 3) {
-      return context;
-    }
-    
-    // 计算需要移除的事件数量（最老的三分之一）
-    let removeCount = Math.floor(events.length / 3);
-    if (removeCount === 0) {
-      removeCount = 1; // 至少移除1个
-    }
-    
-    // 获取最老的事件（按时间正序排列）
-    const sortedEvents = [...events].sort((a, b) => a.timestamp - b.timestamp);
-    const oldestEvents = sortedEvents.slice(0, removeCount);
-    
-    // 将最老的事件转换为记忆系统的states格式
-    const statesForMemory = oldestEvents.map(event => event.data);
-    
-    // 异步调度记忆更新
-    try {
-      const { updateMemory } = await import('../memory-system/index.js');
-      await updateMemory(statesForMemory, { userId: "default", forceProcess: true });
-      console.log(`已调度 ${oldestEvents.length} 个事件的记忆存储`);
-    } catch (error) {
-      console.warn('Memory update scheduling failed:', error);
-    }
-    
-    // 保留剩余的事件
-    const remainingEvents = sortedEvents.slice(removeCount);
-    // 按原始顺序重新排列
-    const recentEvents = remainingEvents.sort((a, b) => a.timestamp - b.timestamp);
-    
-    // 重新构建上下文时也使用新的格式
-    const contextParts = [
-      _getBaseInfoSection(),
-      await _getToolsSection(),
-      await _getMemorySection(),
-      _getHistorySection(recentEvents)
-    ];
-    
-    const truncatedNote = `\n> ⚠️ 由于上下文长度限制，已将 ${removeCount} 个最早的对话存储到记忆中\n`;
-    
-    return contextParts.join("\n\n") + truncatedNote;
-  }
+  // 移除 _truncateContext 方法，因为不再需要
 
   function _getBaseInfoSection() {
     const today = new Date().toLocaleString('zh-CN');

@@ -24,6 +24,53 @@ export function createAgent(options = {}) {
     return addToolResult(results, stateManager);
   }
 
+  // 检查并清理超长上下文
+  async function checkAndCleanupContext() {
+    const estimatedLength = stateManager.estimateContextLength();
+    console.log("estimatedLength: ", estimatedLength);
+    if (estimatedLength <= maxContextLength) {
+      return; // 不需要清理
+    }
+    
+    const currentEvents = stateManager.getState();
+    if (currentEvents.length <= 3) {
+      return; // 事件太少，不清理
+    }
+    
+    // 计算需要移除的事件数量（最老的1/3）
+    let removeCount = Math.floor(currentEvents.length / 3);
+    if (removeCount === 0) {
+      removeCount = 1; // 至少移除1个
+    }
+    
+    console.log(`上下文长度预估 ${estimatedLength}，将移除 ${removeCount} 个最老事件`);
+    
+    // 立即从状态中移除老事件
+    const removedEvents = stateManager.removeOldestEvents(removeCount);
+    
+    if (removedEvents.length > 0) {
+      console.log(`已从状态中移除 ${removedEvents.length} 个事件`);
+      
+      // 异步调度记忆更新（不阻塞主流程）
+      scheduleMemoryUpdate(removedEvents);
+    }
+  }
+
+  // 异步调度记忆更新
+  function scheduleMemoryUpdate(removedEvents) {
+    // 使用 Promise.resolve().then() 确保异步执行
+    Promise.resolve().then(async () => {
+      try {
+        const statesForMemory = removedEvents.map(event => event.data);
+        const { updateMemory } = await import('../memory-system/index.js');
+        await updateMemory(statesForMemory, "default", undefined, true);
+        console.log(`✅ 已将 ${removedEvents.length} 个事件存储到记忆系统`);
+      } catch (error) {
+        console.warn('⚠️ 记忆更新失败（不影响主对话）:', error.message);
+      }
+    });
+  }
+
   // 处理用户输入
   async function processUserInput(llmCallFunction) {
     let iteration = 0;
@@ -31,6 +78,9 @@ export function createAgent(options = {}) {
     while (iteration < maxIterations) {
       iteration++;
       console.log(`\n--- 处理中 ${iteration} ---`);
+
+      // 0. 检查并清理上下文（新增）
+      await checkAndCleanupContext();
 
       // 1. 上下文工程：用当前状态生成 prompt
       const currentState = stateManager.getState();
@@ -120,6 +170,9 @@ export function createAgent(options = {}) {
       // 添加用户消息
       addUserMessageToState(message);
 
+      // 检查并清理上下文（新增）
+      await checkAndCleanupContext();
+
       setGlobalStatus('thinking', '正在思考回复...');
       
       // 生成上下文
@@ -206,7 +259,8 @@ export function createAgent(options = {}) {
     getCurrentState,
     clearState,
     getStats,
-    setGlobalStatus
+    setGlobalStatus,
+    checkAndCleanupContext  
   };
 }
 

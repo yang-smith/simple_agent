@@ -43,7 +43,7 @@ export const generateId = () => 'mem_' + Math.random().toString(36).substr(2, 9)
 
 export const defaultConfig = {
   // 状态处理阈值：超过此token数量才会触发状态压缩处理
-  STATES_TOKEN_THRESHOLD: 8000,
+  STATES_TOKEN_THRESHOLD: 5000,
   
   // 短期记忆最大数量：超过此数量会触发批量认知重构
   SHORT_TERM_MAX_COUNT: 50,

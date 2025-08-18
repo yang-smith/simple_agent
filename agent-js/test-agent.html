@@ -452,6 +452,47 @@
                 justify-content: center;
             }
         }
+
+        /* 记忆相关样式 */
+        .memory-container {
+            margin-top: 20px;
+        }
+        
+        .memory-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .memory-section {
+            margin-bottom: 25px;
+        }
+        
+        .memory-section h4 {
+            color: #495057;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .memory-meta {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+        }
+        
+        .long-term-memory pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            font-size: 0.9em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -479,7 +520,7 @@
                 <label for="model">Model:</label>
                 <select id="model">
                     <option value="anthropic/claude-4-sonnet-20250522">anthropic/claude-4-sonnet-20250522</option>
-                    <option value="google/gemini-2.5-pro" selected>google/gemini-2.5-pro</option>
+                    <option value="google/gemini-2.5-pro">google/gemini-2.5-pro</option>
                     <option value="google/gemini-2.5-flash" selected>Google Gemini 2.5 Flash</option>
                 </select>
             </div>
@@ -542,9 +583,24 @@
             <button id="toggleStatesView" class="ctrl-btn">👁️ 切换视图</button>
             <button id="exportStates" class="ctrl-btn">📤 导出</button>
             <button id="importStates" class="ctrl-btn">📥 导入</button>
+            <button id="showMemoryStats" class="ctrl-btn">🧠 记忆统计</button>
+            <button id="clearMemories" class="ctrl-btn">🗑️ 清空记忆</button>
         </div>
         <div id="statesContainer" class="states-display">
             <!-- 状态信息将在这里动态显示 -->
+        </div>
+    </div>
+
+    <!-- 新增记忆状态容器 -->
+    <div class="container memory-container" id="memorySection" style="display: none;">
+        <h3>🧠 记忆系统状态</h3>
+        <div class="control-panel">
+            <button id="refreshMemory" class="ctrl-btn">🔄 刷新记忆</button>
+            <button id="toggleMemoryView" class="ctrl-btn">👁️ 切换记忆视图</button>
+            <button id="exportMemory" class="ctrl-btn">📤 导出记忆</button>
+        </div>
+        <div id="memoryContainer" class="states-display">
+            <!-- 记忆信息将在这里动态显示 -->
         </div>
     </div>
 
@@ -578,6 +634,7 @@
         let agent = null;
         let llmClient = null;
         let statesViewMode = 'formatted'; // 'formatted' or 'raw'
+        let memoryViewMode = 'formatted'; // 'formatted' or 'raw'
         
         // DOM 元素
         const chatHistory = document.getElementById('chatHistory');
@@ -984,13 +1041,17 @@
                 
                 // 添加用户消息到状态
                 agent.addUserMessage(message);
-                
+
+                // 检查并清理上下文（新增）
+                await agent.checkAndCleanupContext();
+
                 agent.setGlobalStatus('thinking', '正在思考回复...');
                 
                 // 生成上下文
                 const currentState = agent.getCurrentState();
                 const { createContextBuilder } = await import('./src/core/context.js');
-                const contextBuilder = createContextBuilder({ maxContextLength: 8000 });
+                const maxContextLength = parseInt(document.getElementById('maxContextLength').value) || 8000;
+                const contextBuilder = createContextBuilder({ maxContextLength });
                 const context = await contextBuilder.createContextFromState(currentState);
                 
                 // 流式调用LLM
@@ -1377,6 +1438,228 @@
         // 初始化统计显示
         updateStats();
         updateStates();
+
+        // DOM 元素 - 添加记忆相关元素
+        const showMemoryStatsButton = document.getElementById('showMemoryStats');
+        const clearMemoriesButton = document.getElementById('clearMemories');
+        const memorySection = document.getElementById('memorySection');
+        const memoryContainer = document.getElementById('memoryContainer');
+        const refreshMemoryButton = document.getElementById('refreshMemory');
+        const toggleMemoryViewButton = document.getElementById('toggleMemoryView');
+        const exportMemoryButton = document.getElementById('exportMemory');
+
+        // 显示/隐藏记忆统计
+        function toggleMemoryStats() {
+            if (memorySection.style.display === 'none') {
+                memorySection.style.display = 'block';
+                updateMemoryDisplay();
+                showMemoryStatsButton.textContent = '🧠 隐藏记忆';
+            } else {
+                memorySection.style.display = 'none';
+                showMemoryStatsButton.textContent = '🧠 记忆统计';
+            }
+        }
+
+        // 更新记忆显示
+        async function updateMemoryDisplay() {
+            const userId = 'default';
+            
+            try {
+                // 获取记忆数据
+                const memoryData = await getMemoryData(userId);
+                
+                if (memoryViewMode === 'raw') {
+                    // 原始JSON视图
+                    memoryContainer.innerHTML = `
+                        <div class="states-raw">
+                            <pre><code>${JSON.stringify(memoryData, null, 2)}</code></pre>
+                        </div>
+                    `;
+                } else {
+                    // 格式化视图
+                    memoryContainer.innerHTML = formatMemoryDisplay(memoryData);
+                }
+            } catch (error) {
+                console.error('Update memory display failed:', error);
+                memoryContainer.innerHTML = `<div class="error">记忆加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 获取记忆数据
+        async function getMemoryData(userId) {
+            const STORAGE_PREFIX = 'memory_system_';
+            const shortTermKey = `${STORAGE_PREFIX}short_term_${userId}`;
+            const longTermKey = `${STORAGE_PREFIX}long_term_${userId}`;
+            
+            // 获取短期记忆
+            let shortTermMemories = [];
+            try {
+                const shortTermData = localStorage.getItem(shortTermKey);
+                shortTermMemories = shortTermData ? JSON.parse(shortTermData) : [];
+            } catch (error) {
+                console.error('Parse short-term memory failed:', error);
+            }
+            
+            // 获取长期记忆
+            let longTermMemory = '';
+            try {
+                longTermMemory = localStorage.getItem(longTermKey) || '';
+            } catch (error) {
+                console.error('Get long-term memory failed:', error);
+            }
+            
+            return {
+                shortTerm: shortTermMemories,
+                longTerm: longTermMemory,
+                stats: {
+                    shortTermCount: shortTermMemories.length,
+                    longTermLength: longTermMemory.length,
+                    totalSize: (JSON.stringify(shortTermMemories).length + longTermMemory.length)
+                }
+            };
+        }
+
+        // 格式化记忆显示
+        function formatMemoryDisplay(memoryData) {
+            const { shortTerm, longTerm, stats } = memoryData;
+            
+            let html = `
+                <div class="states-formatted">
+                    <div class="memory-stats">
+                        <div class="stat-card">
+                            <div class="stat-title">短期记忆数量</div>
+                            <div class="stat-value">${stats.shortTermCount}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-title">长期记忆长度</div>
+                            <div class="stat-value">${stats.longTermLength}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-title">总存储大小</div>
+                            <div class="stat-value">${(stats.totalSize / 1024).toFixed(1)}KB</div>
+                        </div>
+                    </div>
+            `;
+            
+            // 短期记忆显示
+            if (shortTerm.length > 0) {
+                html += `
+                    <div class="memory-section">
+                        <h4>📝 短期记忆 (${shortTerm.length} 条)</h4>
+                `;
+                
+                shortTerm.forEach((memory, index) => {
+                    const timestamp = new Date(memory.timestamp).toLocaleString('zh-CN');
+                    html += `
+                        <div class="state-item">
+                            <div class="state-header">
+                                <span class="state-type">💭 记忆 #${index + 1}</span>
+                                <span class="state-time">${timestamp}</span>
+                            </div>
+                            <div class="state-content">
+                                <div class="message-content-state">${memory.content}</div>
+                                <div class="memory-meta">
+                                    <small>ID: ${memory.id} | HP: ${memory.hp}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+            } else {
+                html += '<div class="system-info">暂无短期记忆</div>';
+            }
+            
+            // 长期记忆显示
+            if (longTerm.trim()) {
+                html += `
+                    <div class="memory-section">
+                        <h4>🧠 长期记忆 (${longTerm.length} 字符)</h4>
+                        <div class="state-item">
+                            <div class="state-content">
+                                <div class="long-term-memory">
+                                    <pre>${longTerm}</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += '<div class="system-info">暂无长期记忆</div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        // 切换记忆视图模式
+        function toggleMemoryView() {
+            memoryViewMode = memoryViewMode === 'formatted' ? 'raw' : 'formatted';
+            toggleMemoryViewButton.textContent = memoryViewMode === 'formatted' ? '👁️ 切换到原始视图' : '👁️ 切换到格式化视图';
+            updateMemoryDisplay();
+        }
+
+        // 清空记忆
+        async function clearMemories() {
+            const confirmed = confirm('确定要清空所有记忆吗？此操作不可撤销。');
+            if (confirmed) {
+                try {
+                    const userId = 'default';
+                    const STORAGE_PREFIX = 'memory_system_';
+                    const shortTermKey = `${STORAGE_PREFIX}short_term_${userId}`;
+                    const longTermKey = `${STORAGE_PREFIX}long_term_${userId}`;
+                    
+                    localStorage.removeItem(shortTermKey);
+                    localStorage.removeItem(longTermKey);
+                    
+                    console.log('记忆已清空');
+                    alert('记忆已清空！');
+                    updateMemoryDisplay();
+                } catch (error) {
+                    console.error('清空记忆失败:', error);
+                    alert('清空记忆失败: ' + error.message);
+                }
+            }
+        }
+
+        // 导出记忆
+        async function exportMemory() {
+            try {
+                const userId = 'default';
+                const memoryData = await getMemoryData(userId);
+                
+                const exportData = {
+                    timestamp: new Date().toISOString(),
+                    userId: userId,
+                    version: '1.0',
+                    ...memoryData
+                };
+                
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `memory-export-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                console.log('📤 记忆已导出到文件');
+            } catch (error) {
+                console.error('导出记忆失败:', error);
+                alert('导出记忆失败: ' + error.message);
+            }
+        }
+
+        // 事件监听器 - 添加记忆相关事件
+        showMemoryStatsButton.addEventListener('click', toggleMemoryStats);
+        clearMemoriesButton.addEventListener('click', clearMemories);
+        refreshMemoryButton.addEventListener('click', updateMemoryDisplay);
+        toggleMemoryViewButton.addEventListener('click', toggleMemoryView);
+        exportMemoryButton.addEventListener('click', exportMemory);
     </script>
 </body>
 </html> 

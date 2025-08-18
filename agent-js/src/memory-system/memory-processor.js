@@ -7,11 +7,11 @@ import { estimateTokenCount, shouldProcessStates, createMemoryBatch, initializeC
 import * as storage from './storage.js';
 
 export const processStates = async (states, userId = 'default', config, forceProcess = false) => {
-  if (!shouldProcessStates(states, config.STATES_TOKEN_THRESHOLD, forceProcess)) {
-    const tokenCount = estimateTokenCount(states);
-    console.log(`Token count (${tokenCount}) below threshold (${config.STATES_TOKEN_THRESHOLD})`);
-    return null;
-  }
+  // if (!shouldProcessStates(states, config.STATES_TOKEN_THRESHOLD, forceProcess)) {
+  //   const tokenCount = estimateTokenCount(states);
+  //   console.log(`Token count (${tokenCount}) below threshold (${config.STATES_TOKEN_THRESHOLD})`);
+  //   return null;
+  // }
   
   const tokenCount = estimateTokenCount(states);
   console.log(`Processing states: ${states.length} events, ${tokenCount} tokens`);

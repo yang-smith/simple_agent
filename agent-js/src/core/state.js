@@ -68,13 +68,53 @@ export function createStateManager() {
     };
   }
 
+  // 移除最老的N个事件
+  function removeOldestEvents(count) {
+    if (count <= 0 || events.length === 0) {
+      return [];
+    }
+    
+    // 按时间排序，获取最老的事件
+    const sortedEvents = [...events].sort((a, b) => a.timestamp - b.timestamp);
+    const toRemove = sortedEvents.slice(0, Math.min(count, events.length));
+    
+    // 从原数组中移除这些事件
+    events = events.filter(event => 
+      !toRemove.some(removeEvent => 
+        removeEvent.timestamp === event.timestamp && 
+        removeEvent.type === event.type
+      )
+    );
+    
+    return toRemove;
+  }
+
+  // 估算当前事件列表的上下文长度
+  function estimateContextLength() {
+    let totalLength = 0;
+    
+    for (const event of events) {
+      if (event.type === 'user_message') {
+        totalLength += (event.data?.content || '').length;
+      } else if (event.type === 'agent_message') {
+        totalLength += (event.data?.content || '').length;
+      } else if (event.type === 'tool_result') {
+        totalLength += 200;
+      }
+    }
+
+    return totalLength ;
+  }
+
   return {
     addEvent,
     getState,
     getEventsByType,
     clearState,
     getRecentEvents,
-    getStats
+    getStats,
+    removeOldestEvents,
+    estimateContextLength
   };
 }
 
